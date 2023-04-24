@@ -1,4 +1,4 @@
-import type { V2_MetaFunction } from "@remix-run/node";
+import { ActionArgs, V2_MetaFunction, json } from "@remix-run/node";
 import React, { useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 // import logo from "./logo.svg";  // TODO: add favicon
@@ -23,6 +23,9 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
 import SummarizeIcon from "@mui/icons-material/Summarize";
 import EditIcon from "@mui/icons-material/Edit";
+import { Form, useLoaderData } from "@remix-run/react";
+
+const fsPromises = require("fs").promises;
 
 export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
@@ -84,14 +87,14 @@ class LoginData {
 
 class GameData {
   constructor(
-    private loginData: LoginData,
-    private words: Map<Team, Word[]>,
-    private rounds: Map<Team, Round[]>,
-    private summaries: Map<Team, Summary[]>
+    public loginData: LoginData,
+    public words: Map<Team, Word[]>,
+    public rounds: Map<Team, Round[]>,
+    public summaries: Map<Team, Summary[]>
   ) {}
 
-  public static fromJson(loginData: LoginData, json_test: string): GameData {
-    const json = JSON.parse(json_test);
+  public static fromJson(loginData: LoginData, json_text: string): GameData {
+    const json = JSON.parse(json_text);
     const words = new Map([
       [Team.Red, json.redWords as Word[]],
       [Team.Blue, json.blueWords as Word[]],
@@ -107,6 +110,16 @@ class GameData {
     return new GameData(loginData, words, rounds, summaries);
   }
 
+  public toJson(): string {
+    const jsonObject = {
+      redWords: this.words.get(Team.Red),
+      blueWords: this.words.get(Team.Blue),
+      redRounds: this.rounds.get(Team.Red),
+      blueRounds: this.rounds.get(Team.Blue),
+    };
+    return JSON.stringify(jsonObject, null, 2);
+  }
+
   public ourRounds(): Round[] {
     return this.rounds.get(this.loginData.myTeam)!;
   }
@@ -120,111 +133,6 @@ class GameData {
     return this.summaries.get(other_team(this.loginData.myTeam))!;
   }
 }
-
-const sampleJson = `{
-  "redWords": [
-    {
-      "word_id": 1,
-      "word": "Lorem"
-    },
-    {
-      "word_id": 2,
-      "word": "ipsum"
-    },
-    {
-      "word_id": 3,
-      "word": "dolor"
-    },
-    {
-      "word_id": 4,
-      "word": "sit"
-    }
-  ],
-  "blueWords": [
-    {
-      "word_id": 1,
-      "word": "amet"
-    },
-    {
-      "word_id": 2,
-      "word": "consectetur"
-    },
-    {
-      "word_id": 3,
-      "word": "adipiscing"
-    },
-    {
-      "word_id": 4,
-      "word": "elit"
-    }
-  ],
-  "redRounds": [
-    {
-      "round_id": 1,
-      "items": [
-        {
-          "explanation": "Lorem ipsum",
-          "guess": 4,
-          "answer": 2
-        },
-        {
-          "explanation": "dolor sit amet",
-          "guess": 3,
-          "answer": 3
-        },
-        {
-          "explanation": "consectetur",
-          "guess": 2,
-          "answer": 4
-        }
-      ]
-    },
-    {
-      "round_id": 2,
-      "items": [
-        {
-          "explanation": "Cras justo dui",
-          "guess": 1,
-          "answer": 1
-        },
-        {
-          "explanation": "maximus elementum ornare sed",
-          "guess": 2,
-          "answer": 2
-        },
-        {
-          "explanation": "pretium ut magna",
-          "guess": 4,
-          "answer": 3
-        }
-      ]
-    }
-  ],
-  "blueRounds": [
-    {
-      "round_id": 1,
-      "items": [
-        {
-          "explanation": "Vivamus tincidunt",
-          "guess": 4,
-          "answer": 2
-        },
-        {
-          "explanation": "rhoncus aliquam",
-          "guess": 3,
-          "answer": 3
-        },
-        {
-          "explanation": "Ut in metus facilisis",
-          "guess": 2,
-          "answer": 4
-        }
-      ]
-    }
-  ]
-}`;
-
-const gameData = GameData.fromJson(new LoginData(Team.Red), sampleJson);
 
 const WideTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
@@ -303,6 +211,14 @@ function summaryCard(summary: Summary) {
   );
 }
 
+function MainView(gameData: GameData) {
+  return (
+    <Form method="post" reloadDocument>
+      <input type="text" name="word" />
+    </Form>
+  );
+}
+
 function RoundsView(rounds: Round[]) {
   return <Stack spacing={2}>{rounds.map((r) => roundCard(r))}</Stack>;
 }
@@ -311,10 +227,30 @@ function SummariesView(summaries: Summary[]) {
   return <Stack spacing={2}>{summaries.map((s) => summaryCard(s))}</Stack>;
 }
 
+export async function loader() {
+  return await fsPromises.readFile("../game-data/current", "utf8");
+}
+
+export async function action({ request }: ActionArgs) {
+  const loginData = new LoginData(Team.Red); // TODO: Delete
+  const data = GameData.fromJson(
+    loginData,
+    await fsPromises.readFile("../game-data/current", "utf8")
+  );
+  // TODO: ...
+  const words = data.words.get(Team.Red)!;
+  words.push(new Word(words.length + 1, "new word"));
+  await fsPromises.writeFile("../game-data/current", data.toJson(), "utf8");
+  return json({ ok: true });
+}
+
 export default function Index() {
+  const gameDataJson = useLoaderData<typeof loader>();
+  const gameData = GameData.fromJson(new LoginData(Team.Red), gameDataJson);
+
   const [tabIndex, setTableIndex] = useState(0);
   const body = {
-    0: <div>Current Round</div>,
+    0: MainView(gameData),
     1: RoundsView(gameData.ourRounds()),
     2: RoundsView(gameData.theirRounds()),
     3: SummariesView(gameData.ourSummaries()),
