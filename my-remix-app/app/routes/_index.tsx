@@ -1,4 +1,4 @@
-import { ActionArgs, V2_MetaFunction, json } from "@remix-run/node";
+import { type ActionArgs, type V2_MetaFunction, json } from "@remix-run/node";
 import React, { useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 // import logo from "./logo.svg";  // TODO: add favicon
@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Typography,
   styled,
   tableCellClasses,
 } from "@mui/material";
@@ -36,11 +37,24 @@ export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
 };
 
+function toClass(cls: any, data: any): any {
+  return Object.assign(new cls(), data);
+}
+function toClassArray(cls: any, data: any[]): any[] {
+  return data.map((item) => toClass(cls, item));
+}
+
 enum Team {
   Red,
   Blue,
 }
 
+function string_to_team(s: string): Team | undefined {
+  return s === "red" ? Team.Red : s === "blue" ? Team.Blue : undefined;
+}
+function team_to_string(t: Team): string {
+  return t === Team.Red ? "red" : "blue";
+}
 function all_teams(): Team[] {
   return [Team.Red, Team.Blue];
 }
@@ -51,7 +65,7 @@ function other_team(team: Team): Team {
 class RoundItem {
   constructor(
     public explanation: string,
-    public guess: number,
+    public guess: number, // TODO: whose guess it is?
     public answer: number
   ) {}
 }
@@ -96,17 +110,40 @@ function make_summaries(words: Word[], rounds: PastRound[]): Summary[] {
   return summaries;
 }
 
+enum RoundStage {
+  None, // game is over
+  Explain,
+  Guess,
+  Done,
+}
+
 class CurrentRound {
   constructor(
-    public round_id?: number,
-    public answer_ids?: number[],
+    public round_id?: number, // only undefined when the game is over
+    public answer_ids?: number[], // only undefined when the game is over
     public explanations?: Explanation[],
-    public guess_ids?: number[]
+    public red_guess_ids?: number[],
+    public blue_guess_ids?: number[]
   ) {}
+
+  public stage(): RoundStage {
+    if (this.round_id === undefined) {
+      console.assert(this.answer_ids === undefined);
+      return RoundStage.None;
+    }
+    if (this.explanations === undefined) {
+      return RoundStage.Explain;
+    }
+    if (this.red_guess_ids === undefined) {
+      console.assert(this.blue_guess_ids === undefined);
+      return RoundStage.Guess;
+    }
+    return RoundStage.Done;
+  }
 }
 
 class LoginData {
-  constructor(public myTeam: Team) {}
+  constructor(public ourTeam: Team) {}
 }
 
 class GameData {
@@ -120,16 +157,16 @@ class GameData {
   public static fromJson(json_text: string): GameData {
     const json = JSON.parse(json_text);
     const words = new Map([
-      [Team.Red, json.redWords as Word[]],
-      [Team.Blue, json.blueWords as Word[]],
+      [Team.Red, toClassArray(Word, json.redWords)],
+      [Team.Blue, toClassArray(Word, json.blueWords)],
     ]);
     const pastRounds = new Map([
-      [Team.Red, json.redPastRounds as PastRound[]],
-      [Team.Blue, json.bluePastRounds as PastRound[]],
+      [Team.Red, toClassArray(PastRound, json.redPastRounds)],
+      [Team.Blue, toClassArray(PastRound, json.bluePastRounds)],
     ]);
     const currentRound = new Map([
-      [Team.Red, json.redCurrentRound as CurrentRound],
-      [Team.Blue, json.blueCurrentRound as CurrentRound],
+      [Team.Red, toClass(CurrentRound, json.redCurrentRound)],
+      [Team.Blue, toClass(CurrentRound, json.blueCurrentRound)],
     ]);
     const summaries = new Map();
     for (const t of all_teams()) {
@@ -158,29 +195,23 @@ class ClientData {
     public captainMode: boolean
   ) {}
 
-  public ourWords(): Word[] {
-    return this.gameData.words.get(this.loginData.myTeam)!;
+  public ourCurrentRound(): CurrentRound {
+    return this.gameData.currentRound.get(this.loginData.ourTeam)!;
   }
-  public wordsToExplain(): Word[] {
-    const currentRound = this.gameData.currentRound.get(this.loginData.myTeam)!;
-    const answer_ids = currentRound.answer_ids;
-    const guess_ids = currentRound.guess_ids;
-    const words = this.gameData.words.get(this.loginData.myTeam)!;
-    return answer_ids && !guess_ids
-      ? answer_ids.map((id) => word_by_id(words, id))
-      : [];
+  public ourWords(): Word[] {
+    return this.gameData.words.get(this.loginData.ourTeam)!;
   }
   public ourRounds(): PastRound[] {
-    return this.gameData.pastRounds.get(this.loginData.myTeam)!;
+    return this.gameData.pastRounds.get(this.loginData.ourTeam)!;
   }
   public theirRounds(): PastRound[] {
-    return this.gameData.pastRounds.get(other_team(this.loginData.myTeam))!;
+    return this.gameData.pastRounds.get(other_team(this.loginData.ourTeam))!;
   }
   public ourSummaries(): Summary[] {
-    return this.gameData.summaries.get(this.loginData.myTeam)!;
+    return this.gameData.summaries.get(this.loginData.ourTeam)!;
   }
   public theirSummaries(): Summary[] {
-    return this.gameData.summaries.get(other_team(this.loginData.myTeam))!;
+    return this.gameData.summaries.get(other_team(this.loginData.ourTeam))!;
   }
 }
 
@@ -195,7 +226,12 @@ const WideTableCell = styled(TableCell)(({ theme }) => ({
 
 const NarrowTableCell = styled(WideTableCell)(({ theme }) => ({
   "&": {
-    width: 10,
+    width: 20,
+  },
+}));
+const NarrowishTableCell = styled(WideTableCell)(({ theme }) => ({
+  "&": {
+    width: 60,
   },
 }));
 
@@ -203,16 +239,16 @@ const MyTableRow = styled(TableRow)(({ theme }) => ({
   "&:nth-of-type(even)": {
     backgroundColor: theme.palette.action.hover,
   },
-  // hide last border
+  // TODO: hide last border when there is nothing below the table
   "&:last-child td, &:last-child th": {
-    border: 0,
+    // border: 0,
   },
 }));
 
 function roundCard(round: PastRound) {
   return (
     <Card key={round.round_id}>
-      <TableContainer component={Paper}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <MyTableRow>
@@ -241,7 +277,7 @@ function roundCard(round: PastRound) {
 function summaryCard(summary: Summary, showWords: boolean) {
   return (
     <Card key={summary.word_id}>
-      <TableContainer component={Paper}>
+      <TableContainer>
         <Table size="small">
           <TableHead>
             <MyTableRow>
@@ -265,16 +301,18 @@ function summaryCard(summary: Summary, showWords: boolean) {
   );
 }
 
-function OurWordsView(props: any) {
-  const words: Word[] = props.words;
+function ourWordsView(words: Word[]) {
   return (
     <Card>
-      <TableContainer component={Paper}>
+      <TableContainer>
         <Table size="small">
           <TableBody>
             {words.map((w) => (
               <MyTableRow key={w.word_id}>
-                <NarrowTableCell className={tableCellClasses.head}>
+                <NarrowTableCell
+                  className={tableCellClasses.head}
+                  align="center"
+                >
                   {w.word_id}
                 </NarrowTableCell>
                 <WideTableCell>{w.word}</WideTableCell>
@@ -287,18 +325,21 @@ function OurWordsView(props: any) {
   );
 }
 
-function EnterExplanationsView(props: any) {
+function enterExplanationsView(ourTeam: Team, wordsToExplain: Word[]) {
   // const formErrors = useActionData<typeof action>();
-  const words: Word[] = props.words;
   return (
     <Card>
       <Form method="post" reloadDocument>
-        <TableContainer component={Paper}>
+        <input type="hidden" name="team" value={team_to_string(ourTeam)} />
+        <TableContainer>
           <Table size="small">
             <TableBody>
-              {words.map((w) => (
+              {wordsToExplain.map((w) => (
                 <MyTableRow key={w.word_id}>
-                  <NarrowTableCell className={tableCellClasses.head}>
+                  <NarrowTableCell
+                    className={tableCellClasses.head}
+                    align="center"
+                  >
                     {w.word_id}
                   </NarrowTableCell>
                   <WideTableCell>
@@ -322,14 +363,97 @@ function EnterExplanationsView(props: any) {
   );
 }
 
+function waitingForExplanationsView() {
+  return (
+    <Card>
+      <Typography variant="body2" m={1}>
+        Waiting for explanations...
+      </Typography>
+    </Card>
+  );
+}
+
+function enterGuessesView(ourTeam: Team, explanations: Explanation[]) {
+  return (
+    <Card>
+      <Form method="post" reloadDocument>
+        <input type="hidden" name="team" value={team_to_string(ourTeam)} />
+        <TableContainer>
+          <Table size="small">
+            <TableBody>
+              {explanations.map((e) => (
+                <MyTableRow key={e.word_id}>
+                  <WideTableCell>{e.explanation}</WideTableCell>
+                  <NarrowishTableCell>
+                    <input
+                      style={{ width: "100%" }}
+                      type="text"
+                      name={`guess-${e.word_id}`}
+                    />
+                  </NarrowishTableCell>
+                </MyTableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Box>
+          {/* TODO: Align right */}
+          <Button type="submit">Submit</Button>
+        </Box>
+      </Form>
+    </Card>
+  );
+}
+
+function waitingForOpponentView() {
+  return (
+    <Card>
+      <Typography variant="body2" m={1}>
+        Waiting for the other team...
+      </Typography>
+    </Card>
+  );
+}
+
 function MainView(clientData: ClientData, captainMode: boolean) {
   // TODO: Display overall stats (num white/black points per team).
+  let dynamicContent = null;
+  const currentRound = clientData.ourCurrentRound();
+  switch (currentRound.stage()) {
+    case RoundStage.None: {
+      break;
+    }
+    case RoundStage.Explain: {
+      if (captainMode) {
+        const words = clientData.ourWords();
+        const wordsToExplain = currentRound.answer_ids!.map((id) =>
+          word_by_id(words, id)
+        );
+        dynamicContent = enterExplanationsView(
+          clientData.loginData.ourTeam,
+          wordsToExplain
+        );
+      } else {
+        dynamicContent = waitingForExplanationsView();
+      }
+      break;
+    }
+    case RoundStage.Guess: {
+      dynamicContent = enterGuessesView(
+        clientData.loginData.ourTeam,
+        currentRound.explanations!
+      );
+      break;
+    }
+    case RoundStage.Done: {
+      dynamicContent = waitingForOpponentView();
+      break;
+    }
+  }
   return (
     <Stack spacing={2}>
-      <OurWordsView words={clientData.ourWords()} />
-      {captainMode && (
-        <EnterExplanationsView words={clientData.wordsToExplain()} />
-      )}
+      {ourWordsView(clientData.ourWords())}
+      {dynamicContent}
     </Stack>
   );
 }
@@ -349,15 +473,45 @@ export async function loader() {
 }
 
 export async function action({ request }: ActionArgs) {
-  const data = GameData.fromJson(
+  // TODO: Don't crash on bad data.
+  const gameData = GameData.fromJson(
     await fsPromises.readFile("../game-data/current", "utf8")
   );
   const formData = await request.formData();
-  console.log("###", formData.get("explanation-1"));
-  // TODO: ...
-  const words = data.words.get(Team.Red)!;
-  words.push(new Word(words.length + 1, "new word"));
-  await fsPromises.writeFile("../game-data/current", data.toJson(), "utf8");
+
+  // console.log("=== BEGIN ===");
+  // for (var pair of formData.entries()) {
+  //   console.log(pair[0] + ", " + pair[1]);
+  // }
+  // console.log("=== END ===");
+
+  const team = string_to_team(formData.get("team")!.toString())!;
+  const currentRound = gameData.currentRound.get(team)!;
+  switch (currentRound.stage()) {
+    case RoundStage.None: {
+      // Game is over
+      break;
+    }
+    case RoundStage.Explain: {
+      currentRound.explanations = [];
+      for (const answer_id of currentRound.answer_ids!) {
+        const explanation = formData
+          .get(`explanation-${answer_id}`)!
+          .toString();
+        currentRound.explanations.push(new Explanation(answer_id, explanation));
+      }
+      break;
+    }
+    case RoundStage.Guess: {
+      // ...
+      break;
+    }
+    case RoundStage.Done: {
+      // ...
+      break;
+    }
+  }
+  await fsPromises.writeFile("../game-data/current", gameData.toJson(), "utf8");
   return json({ ok: true });
 }
 
