@@ -533,12 +533,13 @@ export default function Index() {
   return (
     <Container>
       <CssBaseline />
-      <Container sx={{ pb: 9 }}>{body}</Container>
+      <Container sx={{ pt: 2, pb: 9 }}>{body}</Container>
       <Paper
         sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
         elevation={5}
       >
         <BottomNavigation
+          sx={{ height: 72 }} // accomodate two-line buttons
           value={tabIndex}
           onChange={(event, newValue) => {
             setTableIndex(newValue);
@@ -563,13 +564,18 @@ export default function Index() {
           />
         </BottomNavigation>
       </Paper>
-      <Fab
-        color="primary"
-        sx={{ position: "absolute", bottom: 72, right: 16 }}
-        onClick={() => setCaptainMode(!captainMode)}
-      >
-        {captainMode ? <VisibilityIcon /> : <LockIcon />}
-      </Fab>
+      {
+        // TODO: Also check if it's relevant
+        tabIndex == 0 && (
+          <Fab
+            color="primary"
+            sx={{ position: "absolute", bottom: 84, right: 16 }}
+            onClick={() => setCaptainMode(!captainMode)}
+          >
+            {captainMode ? <VisibilityIcon /> : <LockIcon />}
+          </Fab>
+        )
+      }
     </Container>
   );
 }
