@@ -24,7 +24,18 @@ import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
 import SummarizeIcon from "@mui/icons-material/Summarize";
 import EditIcon from "@mui/icons-material/Edit";
 
-class RoundLine {
+// TODO: Display overall stats (num white/black points per team).
+
+enum Team {
+  Red,
+  Blue,
+}
+
+function other_team(team: Team): Team {
+  return team === Team.Red ? Team.Blue : Team.Red;
+}
+
+class RoundItem {
   constructor(
     public explanation: string,
     public guess: number,
@@ -33,29 +44,117 @@ class RoundLine {
 }
 
 class Round {
-  constructor(public id: number, public lines: RoundLine[]) {}
+  constructor(public round_id: number, public items: RoundItem[]) {}
 }
 
-const ourRounds = [
-  new Round(1, [
-    new RoundLine("Lorem ipsum", 4, 2),
-    new RoundLine("dolor sit amet", 3, 3),
-    new RoundLine("consectetur", 2, 4),
-  ]),
-  new Round(2, [
-    new RoundLine("Cras justo dui", 1, 1),
-    new RoundLine("maximus elementum ornare sed", 2, 2),
-    new RoundLine("pretium ut magna", 4, 3),
-  ]),
-];
+class Summary {
+  constructor(public word_id: number, public explanations: string[]) {}
+}
 
-const theirRounds = [
-  new Round(1, [
-    new RoundLine("Vivamus tincidunt", 4, 2),
-    new RoundLine("rhoncus aliquam", 3, 3),
-    new RoundLine("Ut in metus facilisis", 2, 4),
-  ]),
-];
+class LoginData {
+  constructor(public myTeam: Team) {}
+}
+
+class GameData {
+  constructor(
+    private loginData: LoginData,
+    private words: Map<Team, string[]>,
+    private rounds: Map<Team, Round[]>,
+    private summaries: Map<Team, Summary[]>
+  ) {}
+
+  public static fromJson(loginData: LoginData, json_test: string): GameData {
+    const json = JSON.parse(json_test);
+    const words = new Map([
+      [Team.Red, json.redWords],
+      [Team.Blue, json.blueWords],
+    ]);
+    const rounds = new Map([
+      [Team.Red, json.redRounds],
+      [Team.Blue, json.blueRounds],
+    ]);
+    // TODO: Summaries
+    return new GameData(loginData, words, rounds, new Map());
+  }
+
+  public ourRounds(): Round[] {
+    return this.rounds.get(this.loginData.myTeam)!;
+  }
+  public theirRounds(): Round[] {
+    return this.rounds.get(other_team(this.loginData.myTeam))!;
+  }
+}
+
+const sampleJson = `{
+  "redWords": ["Lorem", "ipsum", "dolor", "sit"],
+  "blueWords": ["amet", "consectetur", "adipiscing", "elit"],
+  "redRounds": [
+    {
+      "round_id": 1,
+      "items": [
+        {
+          "explanation": "Lorem ipsum",
+          "guess": 4,
+          "answer": 2
+        },
+        {
+          "explanation": "dolor sit amet",
+          "guess": 3,
+          "answer": 3
+        },
+        {
+          "explanation": "consectetur",
+          "guess": 2,
+          "answer": 4
+        }
+      ]
+    },
+    {
+      "round_id": 2,
+      "items": [
+        {
+          "explanation": "Cras justo dui",
+          "guess": 1,
+          "answer": 1
+        },
+        {
+          "explanation": "maximus elementum ornare sed",
+          "guess": 2,
+          "answer": 2
+        },
+        {
+          "explanation": "pretium ut magna",
+          "guess": 4,
+          "answer": 3
+        }
+      ]
+    }
+  ],
+  "blueRounds": [
+    {
+      "round_id": 1,
+      "items": [
+        {
+          "explanation": "Vivamus tincidunt",
+          "guess": 4,
+          "answer": 2
+        },
+        {
+          "explanation": "rhoncus aliquam",
+          "guess": 3,
+          "answer": 3
+        },
+        {
+          "explanation": "Ut in metus facilisis",
+          "guess": 2,
+          "answer": 4
+        }
+      ]
+    }
+  ]
+}`;
+
+const gameData = GameData.fromJson(new LoginData(Team.Red), sampleJson);
 
 const RoundTableCell = styled(TableCell)(({ theme }) => ({
   "&:nth-child(n+2)": {
@@ -81,18 +180,18 @@ const RoundTableRow = styled(TableRow)(({ theme }) => ({
 
 function roundCard(r: Round) {
   return (
-    <Card>
+    <Card key={r.round_id}>
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
             <RoundTableRow>
-              <RoundTableCell># {r.id}</RoundTableCell>
+              <RoundTableCell># {r.round_id}</RoundTableCell>
               <RoundTableCell align="center">❔</RoundTableCell>
               <RoundTableCell align="center">❕</RoundTableCell>
             </RoundTableRow>
           </TableHead>
           <TableBody>
-            {r.lines.map((row) => (
+            {r.items.map((row) => (
               <RoundTableRow key={row.explanation}>
                 <RoundTableCell>{row.explanation}</RoundTableCell>
                 <RoundTableCell align="center">{row.guess}</RoundTableCell>
@@ -114,8 +213,8 @@ function App() {
   const [tabIndex, setTableIndex] = useState(0);
   const body = {
     0: <div>Current Round</div>,
-    1: RoundHistory(ourRounds),
-    2: RoundHistory(theirRounds),
+    1: RoundHistory(gameData.ourRounds()),
+    2: RoundHistory(gameData.theirRounds()),
     3: <div>Our Summary</div>,
     4: <div>Their Summary</div>,
   }[tabIndex];
