@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
 // import logo from "./logo.svg";  // TODO: add favicon
 import "./App.css";
@@ -18,8 +18,11 @@ import {
   styled,
   tableCellClasses,
 } from "@mui/material";
-import MailIcon from "@mui/icons-material/Mail";
-import MailOutlinedIcon from "@mui/icons-material/MailOutlined";
+import ViewListOutlinedIcon from "@mui/icons-material/ViewListOutlined";
+import ViewListIcon from "@mui/icons-material/ViewList";
+import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
+import SummarizeIcon from "@mui/icons-material/Summarize";
+import EditIcon from "@mui/icons-material/Edit";
 
 class RoundLine {
   constructor(
@@ -33,7 +36,7 @@ class Round {
   constructor(public id: number, public lines: RoundLine[]) {}
 }
 
-const rounds = [
+const ourRounds = [
   new Round(1, [
     new RoundLine("Lorem ipsum", 4, 2),
     new RoundLine("dolor sit amet", 3, 3),
@@ -43,6 +46,14 @@ const rounds = [
     new RoundLine("Cras justo dui", 1, 1),
     new RoundLine("maximus elementum ornare sed", 2, 2),
     new RoundLine("pretium ut magna", 4, 3),
+  ]),
+];
+
+const theirRounds = [
+  new Round(1, [
+    new RoundLine("Vivamus tincidunt", 4, 2),
+    new RoundLine("rhoncus aliquam", 3, 3),
+    new RoundLine("Ut in metus facilisis", 2, 4),
   ]),
 ];
 
@@ -95,27 +106,51 @@ function roundCard(r: Round) {
   );
 }
 
+function RoundHistory(rounds: Round[]) {
+  return <Stack spacing={2}>{rounds.map((r) => roundCard(r))}</Stack>;
+}
+
 function App() {
+  const [tabIndex, setTableIndex] = useState(0);
+  const body = {
+    0: <div>Current Round</div>,
+    1: RoundHistory(ourRounds),
+    2: RoundHistory(theirRounds),
+    3: <div>Our Summary</div>,
+    4: <div>Their Summary</div>,
+  }[tabIndex];
+
   return (
     <Container>
       <CssBaseline />
-      <Stack spacing={2}>{rounds.map((r) => roundCard(r))}</Stack>
+      {body}
       <Paper
         sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
-        elevation={3}
+        elevation={5}
       >
         <BottomNavigation
-        //   showLabels
-        //   value={value}
-        //   onChange={(event, newValue) => {
-        //     setValue(newValue);
-        //   }}
+          value={tabIndex}
+          onChange={(event, newValue) => {
+            setTableIndex(newValue);
+          }}
         >
+          <BottomNavigationAction label="Current Round" icon={<EditIcon />} />
           <BottomNavigationAction
-            label="Our rounds"
-            icon={<MailOutlinedIcon />}
+            label="Our Rounds"
+            icon={<ViewListOutlinedIcon />}
           />
-          <BottomNavigationAction label="Their rounds" icon={<MailIcon />} />
+          <BottomNavigationAction
+            label="Their Rounds"
+            icon={<ViewListIcon />}
+          />
+          <BottomNavigationAction
+            label="Our Summary"
+            icon={<SummarizeOutlinedIcon />}
+          />
+          <BottomNavigationAction
+            label="Their Summary"
+            icon={<SummarizeIcon />}
+          />
         </BottomNavigation>
       </Paper>
     </Container>
