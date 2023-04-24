@@ -31,6 +31,9 @@ enum Team {
   Blue,
 }
 
+function all_teams(): Team[] {
+  return [Team.Red, Team.Blue];
+}
 function other_team(team: Team): Team {
   return team === Team.Red ? Team.Blue : Team.Red;
 }
@@ -47,8 +50,28 @@ class Round {
   constructor(public round_id: number, public items: RoundItem[]) {}
 }
 
+class Word {
+  constructor(public word_id: number, public word: string) {}
+}
+
 class Summary {
   constructor(public word_id: number, public explanations: string[]) {}
+}
+
+function make_summaries(words: Word[], rounds: Round[]): Summary[] {
+  const summaries: Summary[] = [];
+  for (const word of words) {
+    const explanations: string[] = [];
+    for (const round of rounds) {
+      for (const item of round.items) {
+        if (item.answer === word.word_id) {
+          explanations.push(item.explanation);
+        }
+      }
+    }
+    summaries.push(new Summary(word.word_id, explanations));
+  }
+  return summaries;
 }
 
 class LoginData {
@@ -58,7 +81,7 @@ class LoginData {
 class GameData {
   constructor(
     private loginData: LoginData,
-    private words: Map<Team, string[]>,
+    private words: Map<Team, Word[]>,
     private rounds: Map<Team, Round[]>,
     private summaries: Map<Team, Summary[]>
   ) {}
@@ -66,15 +89,18 @@ class GameData {
   public static fromJson(loginData: LoginData, json_test: string): GameData {
     const json = JSON.parse(json_test);
     const words = new Map([
-      [Team.Red, json.redWords],
-      [Team.Blue, json.blueWords],
+      [Team.Red, json.redWords as Word[]],
+      [Team.Blue, json.blueWords as Word[]],
     ]);
     const rounds = new Map([
-      [Team.Red, json.redRounds],
-      [Team.Blue, json.blueRounds],
+      [Team.Red, json.redRounds as Round[]],
+      [Team.Blue, json.blueRounds as Round[]],
     ]);
-    // TODO: Summaries
-    return new GameData(loginData, words, rounds, new Map());
+    const summaries = new Map();
+    for (const t of all_teams()) {
+      summaries.set(t, make_summaries(words.get(t)!, rounds.get(t)!));
+    }
+    return new GameData(loginData, words, rounds, summaries);
   }
 
   public ourRounds(): Round[] {
@@ -83,11 +109,51 @@ class GameData {
   public theirRounds(): Round[] {
     return this.rounds.get(other_team(this.loginData.myTeam))!;
   }
+  public ourSummaries(): Summary[] {
+    return this.summaries.get(this.loginData.myTeam)!;
+  }
+  public theirSummaries(): Summary[] {
+    return this.summaries.get(other_team(this.loginData.myTeam))!;
+  }
 }
 
 const sampleJson = `{
-  "redWords": ["Lorem", "ipsum", "dolor", "sit"],
-  "blueWords": ["amet", "consectetur", "adipiscing", "elit"],
+  "redWords": [
+    {
+      "word_id": 1,
+      "word": "Lorem"
+    },
+    {
+      "word_id": 2,
+      "word": "ipsum"
+    },
+    {
+      "word_id": 3,
+      "word": "dolor"
+    },
+    {
+      "word_id": 4,
+      "word": "sit"
+    }
+  ],
+  "blueWords": [
+    {
+      "word_id": 1,
+      "word": "amet"
+    },
+    {
+      "word_id": 2,
+      "word": "consectetur"
+    },
+    {
+      "word_id": 3,
+      "word": "adipiscing"
+    },
+    {
+      "word_id": 4,
+      "word": "elit"
+    }
+  ],
   "redRounds": [
     {
       "round_id": 1,
@@ -156,10 +222,7 @@ const sampleJson = `{
 
 const gameData = GameData.fromJson(new LoginData(Team.Red), sampleJson);
 
-const RoundTableCell = styled(TableCell)(({ theme }) => ({
-  "&:nth-child(n+2)": {
-    width: 10,
-  },
+const WideTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
     backgroundColor: theme.palette.common.black,
     color: theme.palette.common.white,
@@ -168,7 +231,13 @@ const RoundTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.body}`]: {},
 }));
 
-const RoundTableRow = styled(TableRow)(({ theme }) => ({
+const NarrowTableCell = styled(WideTableCell)(({ theme }) => ({
+  "&": {
+    width: 10,
+  },
+}));
+
+const MyTableRow = styled(TableRow)(({ theme }) => ({
   "&:nth-of-type(even)": {
     backgroundColor: theme.palette.action.hover,
   },
@@ -178,25 +247,27 @@ const RoundTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-function roundCard(r: Round) {
+function roundCard(round: Round) {
   return (
-    <Card key={r.round_id}>
+    <Card key={round.round_id}>
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
-            <RoundTableRow>
-              <RoundTableCell># {r.round_id}</RoundTableCell>
-              <RoundTableCell align="center">❔</RoundTableCell>
-              <RoundTableCell align="center">❕</RoundTableCell>
-            </RoundTableRow>
+            <MyTableRow>
+              <WideTableCell>
+                # {String(round.round_id).padStart(2, "0")}
+              </WideTableCell>
+              <NarrowTableCell align="center">❔</NarrowTableCell>
+              <NarrowTableCell align="center">❕</NarrowTableCell>
+            </MyTableRow>
           </TableHead>
           <TableBody>
-            {r.items.map((row) => (
-              <RoundTableRow key={row.explanation}>
-                <RoundTableCell>{row.explanation}</RoundTableCell>
-                <RoundTableCell align="center">{row.guess}</RoundTableCell>
-                <RoundTableCell align="center">{row.answer}</RoundTableCell>
-              </RoundTableRow>
+            {round.items.map((item) => (
+              <MyTableRow key={item.explanation}>
+                <WideTableCell>{item.explanation}</WideTableCell>
+                <NarrowTableCell align="center">{item.guess}</NarrowTableCell>
+                <NarrowTableCell align="center">{item.answer}</NarrowTableCell>
+              </MyTableRow>
             ))}
           </TableBody>
         </Table>
@@ -205,18 +276,45 @@ function roundCard(r: Round) {
   );
 }
 
-function RoundHistory(rounds: Round[]) {
+function summaryCard(summary: Summary) {
+  return (
+    <Card key={summary.word_id}>
+      <TableContainer component={Paper}>
+        <Table size="small">
+          <TableHead>
+            <MyTableRow>
+              <WideTableCell>🔮 {summary.word_id}</WideTableCell>
+            </MyTableRow>
+          </TableHead>
+          <TableBody>
+            {summary.explanations.map((explanation) => (
+              <MyTableRow key={explanation}>
+                <WideTableCell>{explanation}</WideTableCell>
+              </MyTableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Card>
+  );
+}
+
+function RoundsView(rounds: Round[]) {
   return <Stack spacing={2}>{rounds.map((r) => roundCard(r))}</Stack>;
+}
+
+function SummariesView(summaries: Summary[]) {
+  return <Stack spacing={2}>{summaries.map((s) => summaryCard(s))}</Stack>;
 }
 
 function App() {
   const [tabIndex, setTableIndex] = useState(0);
   const body = {
     0: <div>Current Round</div>,
-    1: RoundHistory(gameData.ourRounds()),
-    2: RoundHistory(gameData.theirRounds()),
-    3: <div>Our Summary</div>,
-    4: <div>Their Summary</div>,
+    1: RoundsView(gameData.ourRounds()),
+    2: RoundsView(gameData.theirRounds()),
+    3: SummariesView(gameData.ourSummaries()),
+    4: SummariesView(gameData.theirSummaries()),
   }[tabIndex];
 
   return (
