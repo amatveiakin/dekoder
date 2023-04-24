@@ -35,7 +35,7 @@
       "word": "elit"
     }
   ],
-  "redRounds": [
+  "redPastRounds": [
     {
       "round_id": 1,
       "items": [
@@ -77,7 +77,7 @@
       ]
     }
   ],
-  "blueRounds": [
+  "bluePastRounds": [
     {
       "round_id": 1,
       "items": [
@@ -98,5 +98,13 @@
         }
       ]
     }
-  ]
+  ],
+  "redCurrentRound": {
+    "round_id": 3,
+    "answer_ids": [
+      1,
+      2,
+      4
+    ]
+  }
 }
