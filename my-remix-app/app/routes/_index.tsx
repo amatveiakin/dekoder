@@ -87,13 +87,12 @@ class LoginData {
 
 class GameData {
   constructor(
-    public loginData: LoginData,
     public words: Map<Team, Word[]>,
     public rounds: Map<Team, Round[]>,
     public summaries: Map<Team, Summary[]>
   ) {}
 
-  public static fromJson(loginData: LoginData, json_text: string): GameData {
+  public static fromJson(json_text: string): GameData {
     const json = JSON.parse(json_text);
     const words = new Map([
       [Team.Red, json.redWords as Word[]],
@@ -107,7 +106,7 @@ class GameData {
     for (const t of all_teams()) {
       summaries.set(t, make_summaries(words.get(t)!, rounds.get(t)!));
     }
-    return new GameData(loginData, words, rounds, summaries);
+    return new GameData(words, rounds, summaries);
   }
 
   public toJson(): string {
@@ -119,18 +118,22 @@ class GameData {
     };
     return JSON.stringify(jsonObject, null, 2);
   }
+}
+
+class ClientData {
+  constructor(public loginData: LoginData, public gameData: GameData) {}
 
   public ourRounds(): Round[] {
-    return this.rounds.get(this.loginData.myTeam)!;
+    return this.gameData.rounds.get(this.loginData.myTeam)!;
   }
   public theirRounds(): Round[] {
-    return this.rounds.get(other_team(this.loginData.myTeam))!;
+    return this.gameData.rounds.get(other_team(this.loginData.myTeam))!;
   }
   public ourSummaries(): Summary[] {
-    return this.summaries.get(this.loginData.myTeam)!;
+    return this.gameData.summaries.get(this.loginData.myTeam)!;
   }
   public theirSummaries(): Summary[] {
-    return this.summaries.get(other_team(this.loginData.myTeam))!;
+    return this.gameData.summaries.get(other_team(this.loginData.myTeam))!;
   }
 }
 
@@ -211,7 +214,7 @@ function summaryCard(summary: Summary) {
   );
 }
 
-function MainView(gameData: GameData) {
+function MainView(clientData: ClientData) {
   return (
     <Form method="post" reloadDocument>
       <input type="text" name="word" />
@@ -232,9 +235,7 @@ export async function loader() {
 }
 
 export async function action({ request }: ActionArgs) {
-  const loginData = new LoginData(Team.Red); // TODO: Delete
   const data = GameData.fromJson(
-    loginData,
     await fsPromises.readFile("../game-data/current", "utf8")
   );
   // TODO: ...
@@ -245,16 +246,17 @@ export async function action({ request }: ActionArgs) {
 }
 
 export default function Index() {
-  const gameDataJson = useLoaderData<typeof loader>();
-  const gameData = GameData.fromJson(new LoginData(Team.Red), gameDataJson);
+  const loginData = new LoginData(Team.Red);
+  const gameData = GameData.fromJson(useLoaderData<typeof loader>());
+  const clientData = new ClientData(loginData, gameData);
 
   const [tabIndex, setTableIndex] = useState(0);
   const body = {
-    0: MainView(gameData),
-    1: RoundsView(gameData.ourRounds()),
-    2: RoundsView(gameData.theirRounds()),
-    3: SummariesView(gameData.ourSummaries()),
-    4: SummariesView(gameData.theirSummaries()),
+    0: MainView(clientData),
+    1: RoundsView(clientData.ourRounds()),
+    2: RoundsView(clientData.theirRounds()),
+    3: SummariesView(clientData.ourSummaries()),
+    4: SummariesView(clientData.theirSummaries()),
   }[tabIndex];
 
   return (
