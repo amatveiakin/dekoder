@@ -40,8 +40,12 @@ export const meta: V2_MetaFunction = () => {
 // TODO: Fix underscore_case for all functions and variables.
 
 // const TOTAL_TEAMS = 2;
-// const TOTAL_TEAM_WORDS = 4;
-// const TEAM_WORDS_PER_ROUND = 3;
+const TOTAL_TEAM_WORDS = 4;
+const TEAM_WORDS_PER_ROUND = 3;
+
+function getRandomInt(max: number): number {
+  return Math.floor(Math.random() * max);
+}
 
 function all_teams(): string[] {
   return ["red", "blue"];
@@ -88,10 +92,6 @@ function word_by_id(words: Word[], id: number): Word {
   return words.find((w) => w.word_id === id)!;
 }
 
-class Explanation {
-  constructor(public word_id: number, public explanation: string) {}
-}
-
 class Summary {
   constructor(
     public word_id: number,
@@ -127,30 +127,28 @@ enum RoundStage {
 }
 
 function teamExplainedWords(team: string, round: Round): boolean {
-  for (const item of round.teams[team]) {
-    if (!item.explanation) {
-      return false;
-    }
-  }
-  return true;
+  return round.teams[team].every((item) => !!item.explanation);
 }
 
-function teamGuessedWords(team: string, round: Round): boolean {
-  for (const anyTeam of all_teams()) {
-    for (const item of round.teams[anyTeam]) {
-      if (!item.guess?.[team]) {
-        return false;
-      }
-    }
-  }
-  return true;
+function teamGuessedWordsBy(
+  team: string,
+  explainerTeam: string,
+  round: Round
+): boolean {
+  return round.teams[explainerTeam].every((item) => !!item.guess?.[team]);
+}
+
+function teamGuessedAllWords(team: string, round: Round): boolean {
+  return all_teams().every((explainerTeam) =>
+    teamGuessedWordsBy(team, explainerTeam, round)
+  );
 }
 
 function getRoundStage(round: Round): RoundStage {
   if (!all_teams().every((team) => teamExplainedWords(team, round))) {
     return RoundStage.Explain;
   }
-  if (!all_teams().every((team) => teamGuessedWords(team, round))) {
+  if (!all_teams().every((team) => teamGuessedAllWords(team, round))) {
     return RoundStage.Guess;
   }
   return RoundStage.Done;
@@ -345,6 +343,7 @@ function ourWordsView(words: Word[]) {
 }
 
 function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
+  // TODO: input -> TextField
   // const formErrors = useActionData<typeof action>();
   return (
     <Card>
@@ -392,35 +391,47 @@ function waitingForExplanationsView() {
   );
 }
 
-function enterGuessesView(ourTeam: string, explanations: Explanation[]) {
-  return (
-    <Card>
-      <Form method="post" reloadDocument>
-        <input type="hidden" name="team" value={ourTeam} />
-        <TableContainer>
-          <Table size="small">
-            <TableBody>
-              {explanations.map((e) => (
-                <MyTableRow key={e.word_id}>
-                  <WideTableCell>{e.explanation}</WideTableCell>
-                  <NarrowishTableCell>
-                    <input
-                      style={{ width: "100%" }}
-                      type="text"
-                      name={`guess-${e.word_id}`}
-                    />
-                  </NarrowishTableCell>
-                </MyTableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box>
-          {/* TODO: Align right */}
-          <Button type="submit">Submit</Button>
-        </Box>
-      </Form>
-    </Card>
+function enterGuessesView(ourTeam: string, round: Round) {
+  return [ourTeam, other_team(ourTeam)].map(
+    (explainerTeam) =>
+      !teamGuessedWordsBy(ourTeam, explainerTeam, round) && (
+        <Card key={explainerTeam}>
+          <Form method="post" reloadDocument>
+            <input type="hidden" name="team" value={ourTeam} />
+            <input type="hidden" name="explainer-team" value={explainerTeam} />
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <MyTableRow>
+                    <WideTableCell>
+                      {explainerTeam === ourTeam ? "Our words" : "Their words"}
+                    </WideTableCell>
+                    <NarrowTableCell></NarrowTableCell>
+                  </MyTableRow>
+                </TableHead>
+                <TableBody>
+                  {round.teams[explainerTeam].map((item) => (
+                    <MyTableRow key={item.answer}>
+                      <WideTableCell>{item.explanation}</WideTableCell>
+                      <NarrowishTableCell>
+                        <input
+                          style={{ width: "100%" }}
+                          type="text"
+                          name={`guess-${item.answer}`}
+                        />
+                      </NarrowishTableCell>
+                    </MyTableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box>
+              {/* TODO: Align right */}
+              <Button type="submit">Submit</Button>
+            </Box>
+          </Form>
+        </Card>
+      )
   );
 }
 
@@ -461,17 +472,18 @@ function MainView(clientData: ClientData, captainMode: boolean) {
         break;
       }
       case RoundStage.Guess: {
-        const explanations = currentRound.teams[ourTeam].map(
-          (item) => new Explanation(item.answer, item.explanation!)
-        );
-        dynamicContent = enterGuessesView(
-          clientData.loginData.ourTeam,
-          explanations
-        );
+        if (teamGuessedAllWords(ourTeam, currentRound)) {
+          dynamicContent = waitingForOpponentView();
+        } else {
+          dynamicContent = enterGuessesView(
+            clientData.loginData.ourTeam,
+            currentRound
+          );
+        }
         break;
       }
       case RoundStage.Done: {
-        dynamicContent = waitingForOpponentView();
+        // Should not happen.
         break;
       }
     }
@@ -513,9 +525,9 @@ export async function action({ request }: ActionArgs) {
 
   const currentRound = gameData.currentRound;
   if (currentRound) {
-    const team = verify_team(formData.get("team")!.toString())!;
     switch (getRoundStage(currentRound)) {
       case RoundStage.Explain: {
+        const team = verify_team(formData.get("team")!.toString())!;
         for (const item of currentRound.teams[team]) {
           item.explanation = formData
             .get(`explanation-${item.answer}`)!
@@ -524,12 +536,36 @@ export async function action({ request }: ActionArgs) {
         break;
       }
       case RoundStage.Guess: {
-        // ...
+        const team = verify_team(formData.get("team")!.toString())!;
+        const explainerTeam = verify_team(
+          formData.get("explainer-team")!.toString()
+        )!;
+        for (const item of currentRound.teams[explainerTeam]) {
+          item.guess = item.guess || {};
+          item.guess[team] = Number(formData.get(`guess-${item.answer}`)!);
+        }
         break;
       }
       case RoundStage.Done: {
-        // ...
+        console.error("Current round cannot be in Done stage.");
         break;
+      }
+    }
+    if (getRoundStage(currentRound) == RoundStage.Done) {
+      const lastRoundId = currentRound.round_id;
+      gameData.pastRounds.push(currentRound);
+      const isGameOver = false; // TODO
+      if (isGameOver) {
+        // TODO: ...
+      } else {
+        const teams: any = {};
+        for (const t of all_teams()) {
+          teams[t] = Array.from(
+            { length: TEAM_WORDS_PER_ROUND },
+            () => new RoundItem(getRandomInt(TOTAL_TEAM_WORDS) + 1)
+          );
+        }
+        gameData.currentRound = new Round(lastRoundId + 1, teams);
       }
     }
   } else {
