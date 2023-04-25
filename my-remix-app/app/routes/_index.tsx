@@ -18,6 +18,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
   styled,
   tableCellClasses,
@@ -248,7 +249,7 @@ const NarrowTableCell = styled(WideTableCell)(() => ({
 }));
 const NarrowishTableCell = styled(WideTableCell)(() => ({
   "&": {
-    width: 60,
+    width: 72,
   },
 }));
 
@@ -343,7 +344,6 @@ function ourWordsView(words: Word[]) {
 }
 
 function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
-  // TODO: input -> TextField
   // const formErrors = useActionData<typeof action>();
   return (
     <Card>
@@ -361,9 +361,14 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
                     {w.word_id}
                   </NarrowTableCell>
                   <WideTableCell>
-                    <input
-                      style={{ width: "100%" }}
+                    <TextField
+                      hiddenLabel
+                      size="small"
+                      variant="standard"
+                      fullWidth
                       type="text"
+                      required
+                      autoComplete="off"
                       name={`explanation-${w.word_id}`}
                     />
                   </WideTableCell>
@@ -414,9 +419,15 @@ function enterGuessesView(ourTeam: string, round: Round) {
                     <MyTableRow key={item.answer}>
                       <WideTableCell>{item.explanation}</WideTableCell>
                       <NarrowishTableCell>
-                        <input
-                          style={{ width: "100%" }}
-                          type="text"
+                        <TextField
+                          hiddenLabel
+                          size="small"
+                          variant="standard"
+                          fullWidth
+                          type="number"
+                          inputProps={{ min: 1, max: TOTAL_TEAM_WORDS }}
+                          required
+                          autoComplete="off"
                           name={`guess-${item.answer}`}
                         />
                       </NarrowishTableCell>
