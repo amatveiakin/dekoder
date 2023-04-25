@@ -11,6 +11,11 @@ import {
   Button,
   Card,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Paper,
   Stack,
   Table,
@@ -108,11 +113,7 @@ class LoginData {
 }
 
 class ClientData {
-  constructor(
-    public loginData: LoginData,
-    public gameData: GameData,
-    public captainMode: boolean
-  ) {}
+  constructor(public loginData: LoginData, public gameData: GameData) {}
 
   private roundsByTeam(team: string): PastRoundDisplay[] {
     return this.gameData.pastRounds.map((round) => {
@@ -274,6 +275,7 @@ function badgesCard(clientData: ClientData) {
   const gameOver = gameOverMessage !== undefined;
   return (
     <Card
+      elevation={3}
       sx={{
         px: 1.5,
         py: 1,
@@ -364,20 +366,19 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
   );
 }
 
-function waitingForExplanationsView(setCaptainMode: any) {
+function waitingForExplanationsView(setCaptainConfirmation: any) {
   return (
     <>
       <Card>
-        <Typography variant="body2" m={1}>
+        <Typography variant="body2" m={1.5}>
           Waiting for explanations...
         </Typography>
       </Card>
       <Stack alignItems="center">
-        {/* TODO: confirmation */}
         <Button
           startIcon={<LockOpenIcon />}
           variant="contained"
-          onClick={() => setCaptainMode(true)}
+          onClick={() => setCaptainConfirmation(true)}
         >
           To captian mode!
         </Button>
@@ -433,6 +434,8 @@ function enterGuessesView(ourTeam: string, round: Round) {
                   </TableBody>
                 </Table>
               </TableContainer>
+              {/* TODO: Check that guesses are unique */}
+              {/* TODO: `useTransition` while the form is submitting (here and for explanations) */}
               <Button variant="contained" type="submit" sx={{ m: 1 }}>
                 Submit
               </Button>
@@ -446,18 +449,17 @@ function enterGuessesView(ourTeam: string, round: Round) {
 function waitingForOpponentView() {
   return (
     <Card>
-      <Typography variant="body2" m={1}>
+      <Typography variant="body2" m={1.5}>
         Waiting for the other team...
       </Typography>
     </Card>
   );
 }
 
-function MainView(
-  clientData: ClientData,
-  captainMode: boolean,
-  setCaptainMode: any
-) {
+function MainView(clientData: ClientData) {
+  const [captainMode, setCaptainMode] = useState(false);
+  const [captainConfirmation, setCaptainConfirmation] = React.useState(false);
+
   let currentRoundWidget = null;
   const ourTeam = clientData.loginData.ourTeam;
   const currentRound = clientData.currentRound();
@@ -477,7 +479,9 @@ function MainView(
               wordsToExplain
             );
           } else {
-            currentRoundWidget = waitingForExplanationsView(setCaptainMode);
+            currentRoundWidget = waitingForExplanationsView(
+              setCaptainConfirmation
+            );
           }
         }
         break;
@@ -499,12 +503,35 @@ function MainView(
       }
     }
   }
+
   return (
-    <Stack spacing={2}>
-      {badgesCard(clientData)}
-      {ourWordsView(clientData.ourWords())}
-      {currentRoundWidget}
-    </Stack>
+    <>
+      <Dialog open={captainConfirmation}>
+        <DialogTitle>Reveal words for this round?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will reveal the words to explain this round. Only one player in
+            the team should have this information.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCaptainConfirmation(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setCaptainConfirmation(false);
+              setCaptainMode(true);
+            }}
+          >
+            Reveal
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Stack spacing={2}>
+        {badgesCard(clientData)}
+        {ourWordsView(clientData.ourWords())}
+        {currentRoundWidget}
+      </Stack>
+    </>
   );
 }
 
@@ -575,11 +602,10 @@ export default function Game() {
   const loginData = new LoginData(team!);
   const gameData = gameDataFromJson(useLoaderData<typeof loader>());
   const [tabIndex, setTableIndex] = useState(0);
-  const [captainMode, setCaptainMode] = useState(false);
-  const clientData = new ClientData(loginData, gameData, captainMode);
+  const clientData = new ClientData(loginData, gameData);
 
   const body = {
-    0: MainView(clientData, captainMode, setCaptainMode),
+    0: MainView(clientData),
     1: RoundsView(clientData.ourRounds()),
     2: RoundsView(clientData.theirRounds()),
     3: SummariesView(clientData.ourSummaries(), true),
