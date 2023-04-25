@@ -118,6 +118,33 @@ function make_summaries(
   return summaries;
 }
 
+class Badges {
+  constructor(public white_badges: number, public black_badges: number) {}
+}
+
+function makeBadges(ourTeam: string, data: GameData): Badges {
+  const theirTeam = other_team(ourTeam);
+  let white_badges = 0;
+  let black_badges = 0;
+  for (const round of data.pastRounds) {
+    if (!round.teams[ourTeam].every((i) => i.guess![ourTeam] === i.answer)) {
+      black_badges += 1;
+    }
+    if (round.teams[theirTeam].every((i) => i.guess![ourTeam] === i.answer)) {
+      white_badges += 1;
+    }
+  }
+  return new Badges(white_badges, black_badges);
+}
+
+// TODO: Don't stop if several conditions were met simultaneously.
+function isGameOver(data: GameData): boolean {
+  return all_teams().some((team) => {
+    const badges = makeBadges(team, data);
+    return badges.white_badges >= 2 || badges.black_badges >= 2;
+  });
+}
+
 enum RoundStage {
   Explain,
   Guess,
@@ -162,15 +189,15 @@ class GameData {
     public pastRounds: Round[], // always RoundStage.Done
     public currentRound?: Round
   ) {}
+}
 
-  public static fromJson(json_text: string): GameData {
-    // TODO: Add validation
-    return JSON.parse(json_text) as GameData;
-  }
+function gameDataFromJson(json_text: string): GameData {
+  // TODO: Add validation
+  return JSON.parse(json_text) as GameData;
+}
 
-  public toJson(): string {
-    return JSON.stringify(this, null, 2);
-  }
+function gameDataToJson(data: GameData): string {
+  return JSON.stringify(data, null, 2);
 }
 
 class ClientData {
@@ -304,6 +331,31 @@ function summaryCard(summary: Summary, showWords: boolean) {
           </TableBody>
         </Table>
       </TableContainer>
+    </Card>
+  );
+}
+
+function badgeIcons(badges: Badges) {
+  let ret = "";
+  if (badges.white_badges > 0) {
+    ret += "⭐️".repeat(badges.white_badges);
+  }
+  if (badges.black_badges > 0) {
+    ret += "☠️".repeat(badges.black_badges);
+  }
+  return ret ? ret : "–";
+}
+
+function badgesCard(clientData: ClientData) {
+  const ourTeam = clientData.loginData.ourTeam;
+  return (
+    <Card sx={{ p: 1 }}>
+      {[ourTeam, other_team(ourTeam)].map((team) => (
+        <Typography key={team} variant="body1">
+          {team == ourTeam ? "Our badges:" : "Their badges:"}
+          {badgeIcons(makeBadges(team, clientData.gameData))}
+        </Typography>
+      ))}
     </Card>
   );
 }
@@ -470,7 +522,6 @@ function MainView(
   captainMode: boolean,
   setCaptainMode: any
 ) {
-  // TODO: Display overall stats (num white/black points per team).
   let dynamicContent = null;
   const ourTeam = clientData.loginData.ourTeam;
   const currentRound = clientData.currentRound();
@@ -514,6 +565,7 @@ function MainView(
   }
   return (
     <Stack spacing={2}>
+      {badgesCard(clientData)}
       {ourWordsView(clientData.ourWords())}
       {dynamicContent}
     </Stack>
@@ -536,7 +588,7 @@ export async function loader() {
 
 export async function action({ request }: ActionArgs) {
   // TODO: Don't crash on bad data.
-  const gameData = GameData.fromJson(
+  const gameData = gameDataFromJson(
     await fsPromises.readFile("../game-data/current", "utf8")
   );
   const formData = await request.formData();
@@ -578,9 +630,9 @@ export async function action({ request }: ActionArgs) {
     if (getRoundStage(currentRound) == RoundStage.Done) {
       const lastRoundId = currentRound.round_id;
       gameData.pastRounds.push(currentRound);
-      const isGameOver = false; // TODO
-      if (isGameOver) {
-        // TODO: ...
+      const gameOver = isGameOver(gameData);
+      if (gameOver) {
+        gameData.currentRound = undefined;
       } else {
         const teams: any = {};
         for (const t of all_teams()) {
@@ -595,14 +647,18 @@ export async function action({ request }: ActionArgs) {
   } else {
     // Game is over
   }
-  await fsPromises.writeFile("../game-data/current", gameData.toJson(), "utf8");
+  await fsPromises.writeFile(
+    "../game-data/current",
+    gameDataToJson(gameData),
+    "utf8"
+  );
   return json({ ok: true });
 }
 
 export default function Index() {
   const [searchParams, _setSearchParams] = useSearchParams();
   const loginData = new LoginData(searchParams.get("team")!);
-  const gameData = GameData.fromJson(useLoaderData<typeof loader>());
+  const gameData = gameDataFromJson(useLoaderData<typeof loader>());
   const [tabIndex, setTableIndex] = useState(0);
   const [captainMode, setCaptainMode] = useState(false);
   const clientData = new ClientData(loginData, gameData, captainMode);
