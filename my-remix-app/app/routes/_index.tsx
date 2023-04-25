@@ -1,7 +1,6 @@
 import { type ActionArgs, type V2_MetaFunction, json } from "@remix-run/node";
 import React, { useState } from "react";
 import CssBaseline from "@mui/material/CssBaseline";
-// import logo from "./logo.svg";  // TODO: add favicon
 import {
   BottomNavigation,
   BottomNavigationAction,
@@ -35,9 +34,6 @@ export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
 };
 
-// TODO: Fix underscore_case for all functions and variables.
-
-// const TOTAL_TEAMS = 2;
 const TOTAL_TEAM_WORDS = 4;
 const TEAM_WORDS_PER_ROUND = 3;
 
@@ -45,14 +41,14 @@ function getRandomInt(max: number): number {
   return Math.floor(Math.random() * max);
 }
 
-function all_teams(): string[] {
+function allTeams(): string[] {
   return ["red", "blue"];
 }
-function other_team(team: string): string {
+function otherTeam(team: string): string {
   return team === "red" ? "blue" : "red";
 }
-function verify_team(team: string): string | undefined {
-  return all_teams().includes(team) ? team : undefined;
+function verifyTeam(team: string): string | undefined {
+  return allTeams().includes(team) ? team : undefined;
 }
 
 class RoundItem {
@@ -86,7 +82,7 @@ class Word {
   constructor(public word_id: number, public word: string) {}
 }
 
-function word_by_id(words: Word[], id: number): Word {
+function wordById(words: Word[], id: number): Word {
   return words.find((w) => w.word_id === id)!;
 }
 
@@ -98,7 +94,7 @@ class Summary {
   ) {}
 }
 
-function make_summaries(
+function makeSummaries(
   team: string,
   words: Word[],
   rounds: Round[]
@@ -119,11 +115,11 @@ function make_summaries(
 }
 
 class Badges {
-  constructor(public white_badges: number, public black_badges: number) {}
+  constructor(public good_badges: number, public bad_badges: number) {}
 }
 
 function makeBadges(ourTeam: string, data: GameData): Badges {
-  const theirTeam = other_team(ourTeam);
+  const theirTeam = otherTeam(ourTeam);
   let white_badges = 0;
   let black_badges = 0;
   for (const round of data.pastRounds) {
@@ -139,9 +135,9 @@ function makeBadges(ourTeam: string, data: GameData): Badges {
 
 // TODO: Don't stop if several conditions were met simultaneously.
 function isGameOver(data: GameData): boolean {
-  return all_teams().some((team) => {
+  return allTeams().some((team) => {
     const badges = makeBadges(team, data);
-    return badges.white_badges >= 2 || badges.black_badges >= 2;
+    return badges.good_badges >= 2 || badges.bad_badges >= 2;
   });
 }
 
@@ -164,16 +160,16 @@ function teamGuessedWordsBy(
 }
 
 function teamGuessedAllWords(team: string, round: Round): boolean {
-  return all_teams().every((explainerTeam) =>
+  return allTeams().every((explainerTeam) =>
     teamGuessedWordsBy(team, explainerTeam, round)
   );
 }
 
 function getRoundStage(round: Round): RoundStage {
-  if (!all_teams().every((team) => teamExplainedWords(team, round))) {
+  if (!allTeams().every((team) => teamExplainedWords(team, round))) {
     return RoundStage.Explain;
   }
-  if (!all_teams().every((team) => teamGuessedAllWords(team, round))) {
+  if (!allTeams().every((team) => teamGuessedAllWords(team, round))) {
     return RoundStage.Guess;
   }
   return RoundStage.Done;
@@ -191,9 +187,9 @@ class GameData {
   ) {}
 }
 
-function gameDataFromJson(json_text: string): GameData {
+function gameDataFromJson(jsonText: string): GameData {
   // TODO: Add validation
-  return JSON.parse(json_text) as GameData;
+  return JSON.parse(jsonText) as GameData;
 }
 
 function gameDataToJson(data: GameData): string {
@@ -222,7 +218,7 @@ class ClientData {
     });
   }
   private summariesByTeam(team: string): Summary[] {
-    return make_summaries(
+    return makeSummaries(
       team,
       this.gameData.words[team],
       this.gameData.pastRounds
@@ -239,13 +235,13 @@ class ClientData {
     return this.roundsByTeam(this.loginData.ourTeam);
   }
   public theirRounds(): PastRoundDisplay[] {
-    return this.roundsByTeam(other_team(this.loginData.ourTeam));
+    return this.roundsByTeam(otherTeam(this.loginData.ourTeam));
   }
   public ourSummaries(): Summary[] {
     return this.summariesByTeam(this.loginData.ourTeam);
   }
   public theirSummaries(): Summary[] {
-    return this.summariesByTeam(other_team(this.loginData.ourTeam));
+    return this.summariesByTeam(otherTeam(this.loginData.ourTeam));
   }
 }
 
@@ -274,9 +270,9 @@ const MyTableRow = styled(TableRow)(({ theme }) => ({
     backgroundColor: theme.palette.action.hover,
   },
   // TODO: hide last border when there is nothing below the table
-  "&:last-child td, &:last-child th": {
-    // border: 0,
-  },
+  // "&:last-child td, &:last-child th": {
+  //   border: 0,
+  // },
 }));
 
 function roundCard(round: PastRoundDisplay) {
@@ -337,11 +333,11 @@ function summaryCard(summary: Summary, showWords: boolean) {
 
 function badgeIcons(badges: Badges) {
   let ret = "";
-  if (badges.white_badges > 0) {
-    ret += "⭐️".repeat(badges.white_badges);
+  if (badges.good_badges > 0) {
+    ret += "⭐️".repeat(badges.good_badges);
   }
-  if (badges.black_badges > 0) {
-    ret += "☠️".repeat(badges.black_badges);
+  if (badges.bad_badges > 0) {
+    ret += "☠️".repeat(badges.bad_badges);
   }
   return ret ? ret : "–";
 }
@@ -350,7 +346,7 @@ function badgesCard(clientData: ClientData) {
   const ourTeam = clientData.loginData.ourTeam;
   return (
     <Card sx={{ p: 1 }}>
-      {[ourTeam, other_team(ourTeam)].map((team) => (
+      {[ourTeam, otherTeam(ourTeam)].map((team) => (
         <Typography key={team} variant="body1">
           {team == ourTeam ? "Our badges:" : "Their badges:"}
           {badgeIcons(makeBadges(team, clientData.gameData))}
@@ -451,7 +447,7 @@ function waitingForExplanationsView(setCaptainMode: any) {
 }
 
 function enterGuessesView(ourTeam: string, round: Round) {
-  return [ourTeam, other_team(ourTeam)].map(
+  return [ourTeam, otherTeam(ourTeam)].map(
     (explainerTeam) =>
       !teamGuessedWordsBy(ourTeam, explainerTeam, round) && (
         <Card key={explainerTeam}>
@@ -534,7 +530,7 @@ function MainView(
           if (captainMode) {
             const words = clientData.ourWords();
             const wordsToExplain = currentRound.teams[ourTeam].map((item) =>
-              word_by_id(words, item.answer)
+              wordById(words, item.answer)
             );
             dynamicContent = enterExplanationsView(
               clientData.loginData.ourTeam,
@@ -603,7 +599,7 @@ export async function action({ request }: ActionArgs) {
   if (currentRound) {
     switch (getRoundStage(currentRound)) {
       case RoundStage.Explain: {
-        const team = verify_team(formData.get("team")!.toString())!;
+        const team = verifyTeam(formData.get("team")!.toString())!;
         for (const item of currentRound.teams[team]) {
           item.explanation = formData
             .get(`explanation-${item.answer}`)!
@@ -612,8 +608,8 @@ export async function action({ request }: ActionArgs) {
         break;
       }
       case RoundStage.Guess: {
-        const team = verify_team(formData.get("team")!.toString())!;
-        const explainerTeam = verify_team(
+        const team = verifyTeam(formData.get("team")!.toString())!;
+        const explainerTeam = verifyTeam(
           formData.get("explainer-team")!.toString()
         )!;
         for (const item of currentRound.teams[explainerTeam]) {
@@ -635,7 +631,7 @@ export async function action({ request }: ActionArgs) {
         gameData.currentRound = undefined;
       } else {
         const teams: any = {};
-        for (const t of all_teams()) {
+        for (const t of allTeams()) {
           teams[t] = Array.from(
             { length: TEAM_WORDS_PER_ROUND },
             () => new RoundItem(getRandomInt(TOTAL_TEAM_WORDS) + 1)
