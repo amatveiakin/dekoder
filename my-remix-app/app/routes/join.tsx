@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { useNavigate } from "@remix-run/react";
+import { useNavigate, useSearchParams } from "@remix-run/react";
 import { Box, Button, Stack, TextField, ButtonGroup } from "@mui/material";
 
 export default function Join() {
+  const [searchParams, _setSearchParams] = useSearchParams();
   const [team, setTeam] = useState("red");
-  const [gameId, setGameId] = useState("");
+  const [gameId, setGameId] = useState(searchParams.get("gameId"));
   const navigate = useNavigate();
 
   return (

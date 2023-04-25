@@ -31,47 +31,33 @@ import SummarizeIcon from "@mui/icons-material/Summarize";
 import PasswordIcon from "@mui/icons-material/Password";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import { Form, useLoaderData, useParams } from "@remix-run/react";
+import {
+  type Word,
+  type Round,
+  type GameData,
+  type Badges,
+  gameDataFromJson,
+  gameDataToJson,
+  gameFile,
+  TOTAL_TEAM_WORDS,
+  otherTeam,
+  verifyTeam,
+  getGameResult,
+  GAME_RESULT_DRAW,
+  teamGuessedWordsBy,
+  getRoundStage,
+  RoundStage,
+  teamExplainedWords,
+  teamGuessedAllWords,
+  postprocessGameData,
+  makeBadges,
+} from "~/common";
 
 const fsPromises = require("fs").promises;
 
 export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
 };
-
-const TOTAL_TEAM_WORDS = 4;
-const TEAM_WORDS_PER_ROUND = 3;
-
-const GAME_RESULT_ACTIVE = "active";
-const GAME_RESULT_DRAW = "draw";
-
-function getRandomInt(max: number): number {
-  return Math.floor(Math.random() * max);
-}
-
-function allTeams(): string[] {
-  return ["red", "blue"];
-}
-function otherTeam(team: string): string {
-  return team === "red" ? "blue" : "red";
-}
-function verifyTeam(team: string): string | undefined {
-  return allTeams().includes(team) ? team : undefined;
-}
-
-class RoundItem {
-  constructor(
-    public answer: number, // word_id
-    public explanation?: string,
-    public guess?: { [team: string]: number } // word_id
-  ) {}
-}
-
-class Round {
-  constructor(
-    public round_id: number,
-    public teams: { [team: string]: RoundItem[] }
-  ) {}
-}
 
 class PastRoundDisplayItem {
   constructor(
@@ -83,10 +69,6 @@ class PastRoundDisplayItem {
 
 class PastRoundDisplay {
   constructor(public round_id: number, public items: PastRoundDisplayItem[]) {}
-}
-
-class Word {
-  constructor(public word_id: number, public word: string) {}
 }
 
 function wordById(words: Word[], id: number): Word {
@@ -121,104 +103,8 @@ function makeSummaries(
   return summaries;
 }
 
-class Badges {
-  constructor(public good_badges: number, public bad_badges: number) {}
-}
-
-function makeBadges(ourTeam: string, data: GameData): Badges {
-  const theirTeam = otherTeam(ourTeam);
-  let white_badges = 0;
-  let black_badges = 0;
-  for (const round of data.pastRounds) {
-    if (!round.teams[ourTeam].every((i) => i.guess![ourTeam] === i.answer)) {
-      black_badges += 1;
-    }
-    if (round.teams[theirTeam].every((i) => i.guess![ourTeam] === i.answer)) {
-      white_badges += 1;
-    }
-  }
-  return new Badges(white_badges, black_badges);
-}
-
-// Returns the winner, GAME_RESULT_DRAW or GAME_RESULT_ACTIVE.
-function getGameResult(data: GameData): string {
-  const gameOver =
-    data.pastRounds.length >= 8 ||
-    allTeams().some((team) => {
-      const badges = makeBadges(team, data);
-      return badges.good_badges >= 2 || badges.bad_badges >= 2;
-    });
-  if (!gameOver) {
-    return GAME_RESULT_ACTIVE;
-  }
-  const teamScore = (team: string) => {
-    const badges = makeBadges(team, data);
-    return badges.good_badges - badges.bad_badges;
-  };
-  const redScore = teamScore("red");
-  const blueScore = teamScore("blue");
-  if (redScore > blueScore) {
-    return "red";
-  } else if (blueScore > redScore) {
-    return "blue";
-  } else {
-    return GAME_RESULT_DRAW;
-  }
-}
-
-enum RoundStage {
-  Explain,
-  Guess,
-  Done,
-}
-
-function teamExplainedWords(team: string, round: Round): boolean {
-  return round.teams[team].every((item) => !!item.explanation);
-}
-
-function teamGuessedWordsBy(
-  team: string,
-  explainerTeam: string,
-  round: Round
-): boolean {
-  return round.teams[explainerTeam].every((item) => !!item.guess?.[team]);
-}
-
-function teamGuessedAllWords(team: string, round: Round): boolean {
-  return allTeams().every((explainerTeam) =>
-    teamGuessedWordsBy(team, explainerTeam, round)
-  );
-}
-
-function getRoundStage(round: Round): RoundStage {
-  if (!allTeams().every((team) => teamExplainedWords(team, round))) {
-    return RoundStage.Explain;
-  }
-  if (!allTeams().every((team) => teamGuessedAllWords(team, round))) {
-    return RoundStage.Guess;
-  }
-  return RoundStage.Done;
-}
-
 class LoginData {
   constructor(public ourTeam: string) {}
-}
-
-class GameData {
-  constructor(
-    public words: { [team: string]: Word[] },
-    public pastRounds: Round[], // always RoundStage.Done
-    public currentRound?: Round
-  ) {}
-}
-
-function gameDataFromJson(jsonText: string): GameData {
-  // TODO: Add validation
-  return JSON.parse(jsonText) as GameData;
-}
-
-function gameDataToJson(data: GameData): string {
-  return JSON.stringify(data, null, 2);
 }
 
 class ClientData {
@@ -438,7 +324,7 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
   // const formErrors = useActionData<typeof action>();
   return (
     <Card>
-      <Form method="post" reloadDocument>
+      <Form method="post">
         <Stack alignItems="flex-end">
           <input type="hidden" name="team" value={ourTeam} />
           <TableContainer>
@@ -632,27 +518,17 @@ function SummariesView(summaries: Summary[], showWords: boolean) {
   );
 }
 
-function gameFile(params: any): string {
-  return `../game-data/${params.gameId}`;
-}
-
 export async function loader({ params }: LoaderArgs) {
-  return await fsPromises.readFile(gameFile(params), "utf8");
+  return await fsPromises.readFile(gameFile(params.gameId!), "utf8");
 }
 
+// TODO: Is this guaranteed to be single-threaded?
 export async function action({ params, request }: ActionArgs) {
   // TODO: Don't crash on bad data.
   const gameData = gameDataFromJson(
-    await fsPromises.readFile(gameFile(params), "utf8")
+    await fsPromises.readFile(gameFile(params.gameId!), "utf8")
   );
   const formData = await request.formData();
-
-  // console.log("=== BEGIN ===");
-  // for (var pair of formData.entries()) {
-  //   console.log(pair[0] + ", " + pair[1]);
-  // }
-  // console.log("=== END ===");
-
   const currentRound = gameData.currentRound;
   if (currentRound) {
     switch (getRoundStage(currentRound)) {
@@ -681,34 +557,19 @@ export async function action({ params, request }: ActionArgs) {
         break;
       }
     }
-    if (getRoundStage(currentRound) == RoundStage.Done) {
-      const lastRoundId = currentRound.round_id;
-      gameData.pastRounds.push(currentRound);
-      const gameResult = getGameResult(gameData);
-      if (gameResult === "active") {
-        const teams: any = {};
-        for (const t of allTeams()) {
-          teams[t] = Array.from(
-            { length: TEAM_WORDS_PER_ROUND },
-            () => new RoundItem(getRandomInt(TOTAL_TEAM_WORDS) + 1)
-          );
-        }
-        gameData.currentRound = new Round(lastRoundId + 1, teams);
-      } else {
-        gameData.currentRound = undefined;
-      }
-    }
+    postprocessGameData(gameData);
   } else {
     // Game is over
   }
   await fsPromises.writeFile(
-    gameFile(params),
+    gameFile(params.gameId!),
     gameDataToJson(gameData),
     "utf8"
   );
   return json({ ok: true });
 }
 
+// TODO: Make it so that removing team segment from URL redirects to join page.
 export default function Game() {
   const { team } = useParams();
   const loginData = new LoginData(team!);
