@@ -286,14 +286,17 @@ const NarrowishTableCell = styled(WideTableCell)(() => ({
   },
 }));
 
-const MyTableRow = styled(TableRow)(({ theme }) => ({
+const NormalTableRow = styled(TableRow)(({ theme }) => ({
   "&:nth-of-type(even)": {
     backgroundColor: theme.palette.action.hover,
   },
-  // TODO: hide last border when there is nothing below the table
-  // "&:last-child td, &:last-child th": {
-  //   border: 0,
-  // },
+}));
+// Hides last border. Use when is nothing below the table (e.g. table occupies the whole card).
+// TODO: Do this with parameters instead (ideally table parameters).
+const BottomlessTableRow = styled(NormalTableRow)(() => ({
+  "&:last-child td, &:last-child th": {
+    border: 0,
+  },
 }));
 
 function roundCard(round: PastRoundDisplay) {
@@ -302,21 +305,21 @@ function roundCard(round: PastRoundDisplay) {
       <TableContainer>
         <Table size="small">
           <TableHead>
-            <MyTableRow>
+            <NormalTableRow>
               <WideTableCell>
                 # {String(round.round_id).padStart(2, "0")}
               </WideTableCell>
               <NarrowTableCell align="center">❔</NarrowTableCell>
               <NarrowTableCell align="center">❕</NarrowTableCell>
-            </MyTableRow>
+            </NormalTableRow>
           </TableHead>
           <TableBody>
             {round.items.map((item) => (
-              <MyTableRow key={item.explanation}>
+              <BottomlessTableRow key={item.explanation}>
                 <WideTableCell>{item.explanation}</WideTableCell>
                 <NarrowTableCell align="center">{item.guess}</NarrowTableCell>
                 <NarrowTableCell align="center">{item.answer}</NarrowTableCell>
-              </MyTableRow>
+              </BottomlessTableRow>
             ))}
           </TableBody>
         </Table>
@@ -331,19 +334,19 @@ function summaryCard(summary: Summary, showWords: boolean) {
       <TableContainer>
         <Table size="small">
           <TableHead>
-            <MyTableRow>
+            <NormalTableRow>
               <WideTableCell>
                 {/* TODO: Is it a good idea to show your words?
-                    It increases the chance of exposing them accidentally */}
+                    It increases the chance of exposing them accidentally. */}
                 {summary.word_id} {showWords ? summary.word : "🔮"}
               </WideTableCell>
-            </MyTableRow>
+            </NormalTableRow>
           </TableHead>
           <TableBody>
             {summary.explanations.map((explanation) => (
-              <MyTableRow key={explanation}>
+              <BottomlessTableRow key={explanation}>
                 <WideTableCell>{explanation}</WideTableCell>
-              </MyTableRow>
+              </BottomlessTableRow>
             ))}
           </TableBody>
         </Table>
@@ -398,7 +401,7 @@ function ourWordsView(words: Word[]) {
         <Table size="small">
           <TableBody>
             {words.map((w) => (
-              <MyTableRow key={w.word_id}>
+              <BottomlessTableRow key={w.word_id}>
                 <NarrowTableCell
                   className={tableCellClasses.head}
                   align="center"
@@ -406,7 +409,7 @@ function ourWordsView(words: Word[]) {
                   {w.word_id}
                 </NarrowTableCell>
                 <WideTableCell>{w.word}</WideTableCell>
-              </MyTableRow>
+              </BottomlessTableRow>
             ))}
           </TableBody>
         </Table>
@@ -426,7 +429,7 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
             <Table size="small">
               <TableBody>
                 {wordsToExplain.map((w) => (
-                  <MyTableRow key={w.word_id}>
+                  <NormalTableRow key={w.word_id}>
                     <NarrowTableCell
                       className={tableCellClasses.head}
                       align="center"
@@ -445,7 +448,7 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
                         name={`explanation-${w.word_id}`}
                       />
                     </WideTableCell>
-                  </MyTableRow>
+                  </NormalTableRow>
                 ))}
               </TableBody>
             </Table>
@@ -497,18 +500,18 @@ function enterGuessesView(ourTeam: string, round: Round) {
               <TableContainer>
                 <Table size="small">
                   <TableHead>
-                    <MyTableRow>
+                    <NormalTableRow>
                       <WideTableCell>
                         {explainerTeam === ourTeam
                           ? "Our words"
                           : "Their words"}
                       </WideTableCell>
                       <NarrowTableCell></NarrowTableCell>
-                    </MyTableRow>
+                    </NormalTableRow>
                   </TableHead>
                   <TableBody>
                     {round.teams[explainerTeam].map((item) => (
-                      <MyTableRow key={item.answer}>
+                      <NormalTableRow key={item.answer}>
                         <WideTableCell>{item.explanation}</WideTableCell>
                         <NarrowishTableCell>
                           <TextField
@@ -523,7 +526,7 @@ function enterGuessesView(ourTeam: string, round: Round) {
                             name={`guess-${item.answer}`}
                           />
                         </NarrowishTableCell>
-                      </MyTableRow>
+                      </NormalTableRow>
                     ))}
                   </TableBody>
                 </Table>
