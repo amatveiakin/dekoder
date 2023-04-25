@@ -5,11 +5,9 @@ import CssBaseline from "@mui/material/CssBaseline";
 import {
   BottomNavigation,
   BottomNavigationAction,
-  Box,
   Button,
   Card,
   Container,
-  Fab,
   Paper,
   Stack,
   Table,
@@ -28,8 +26,7 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
 import SummarizeIcon from "@mui/icons-material/Summarize";
 import PasswordIcon from "@mui/icons-material/Password";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
 
 const fsPromises = require("fs").promises;
@@ -348,51 +345,64 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
   return (
     <Card>
       <Form method="post" reloadDocument>
-        <input type="hidden" name="team" value={ourTeam} />
-        <TableContainer>
-          <Table size="small">
-            <TableBody>
-              {wordsToExplain.map((w) => (
-                <MyTableRow key={w.word_id}>
-                  <NarrowTableCell
-                    className={tableCellClasses.head}
-                    align="center"
-                  >
-                    {w.word_id}
-                  </NarrowTableCell>
-                  <WideTableCell>
-                    <TextField
-                      hiddenLabel
-                      size="small"
-                      variant="standard"
-                      fullWidth
-                      type="text"
-                      required
-                      autoComplete="off"
-                      name={`explanation-${w.word_id}`}
-                    />
-                  </WideTableCell>
-                </MyTableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box>
-          {/* TODO: Align right */}
-          <Button type="submit">Submit</Button>
-        </Box>
+        <Stack alignItems="flex-end">
+          <input type="hidden" name="team" value={ourTeam} />
+          <TableContainer>
+            <Table size="small">
+              <TableBody>
+                {wordsToExplain.map((w) => (
+                  <MyTableRow key={w.word_id}>
+                    <NarrowTableCell
+                      className={tableCellClasses.head}
+                      align="center"
+                    >
+                      {w.word_id}
+                    </NarrowTableCell>
+                    <WideTableCell>
+                      <TextField
+                        hiddenLabel
+                        size="small"
+                        variant="standard"
+                        fullWidth
+                        type="text"
+                        required
+                        autoComplete="off"
+                        name={`explanation-${w.word_id}`}
+                      />
+                    </WideTableCell>
+                  </MyTableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Button variant="contained" type="submit" sx={{ m: 1 }}>
+            Submit
+          </Button>
+        </Stack>
       </Form>
     </Card>
   );
 }
 
-function waitingForExplanationsView() {
+function waitingForExplanationsView(setCaptainMode: any) {
   return (
-    <Card>
-      <Typography variant="body2" m={1}>
-        Waiting for explanations...
-      </Typography>
-    </Card>
+    <>
+      <Card>
+        <Typography variant="body2" m={1}>
+          Waiting for explanations...
+        </Typography>
+      </Card>
+      <Stack alignItems="center">
+        {/* TODO: confirmation */}
+        <Button
+          startIcon={<LockOpenIcon />}
+          variant="contained"
+          onClick={() => setCaptainMode(true)}
+        >
+          To captian mode!
+        </Button>
+      </Stack>
+    </>
   );
 }
 
@@ -402,44 +412,51 @@ function enterGuessesView(ourTeam: string, round: Round) {
       !teamGuessedWordsBy(ourTeam, explainerTeam, round) && (
         <Card key={explainerTeam}>
           <Form method="post" reloadDocument>
-            <input type="hidden" name="team" value={ourTeam} />
-            <input type="hidden" name="explainer-team" value={explainerTeam} />
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <MyTableRow>
-                    <WideTableCell>
-                      {explainerTeam === ourTeam ? "Our words" : "Their words"}
-                    </WideTableCell>
-                    <NarrowTableCell></NarrowTableCell>
-                  </MyTableRow>
-                </TableHead>
-                <TableBody>
-                  {round.teams[explainerTeam].map((item) => (
-                    <MyTableRow key={item.answer}>
-                      <WideTableCell>{item.explanation}</WideTableCell>
-                      <NarrowishTableCell>
-                        <TextField
-                          hiddenLabel
-                          size="small"
-                          variant="standard"
-                          fullWidth
-                          type="number"
-                          inputProps={{ min: 1, max: TOTAL_TEAM_WORDS }}
-                          required
-                          autoComplete="off"
-                          name={`guess-${item.answer}`}
-                        />
-                      </NarrowishTableCell>
+            <Stack alignItems="flex-end">
+              <input type="hidden" name="team" value={ourTeam} />
+              <input
+                type="hidden"
+                name="explainer-team"
+                value={explainerTeam}
+              />
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <MyTableRow>
+                      <WideTableCell>
+                        {explainerTeam === ourTeam
+                          ? "Our words"
+                          : "Their words"}
+                      </WideTableCell>
+                      <NarrowTableCell></NarrowTableCell>
                     </MyTableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <Box>
-              {/* TODO: Align right */}
-              <Button type="submit">Submit</Button>
-            </Box>
+                  </TableHead>
+                  <TableBody>
+                    {round.teams[explainerTeam].map((item) => (
+                      <MyTableRow key={item.answer}>
+                        <WideTableCell>{item.explanation}</WideTableCell>
+                        <NarrowishTableCell>
+                          <TextField
+                            hiddenLabel
+                            size="small"
+                            variant="standard"
+                            fullWidth
+                            type="number"
+                            inputProps={{ min: 1, max: TOTAL_TEAM_WORDS }}
+                            required
+                            autoComplete="off"
+                            name={`guess-${item.answer}`}
+                          />
+                        </NarrowishTableCell>
+                      </MyTableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Button variant="contained" type="submit" sx={{ m: 1 }}>
+                Submit
+              </Button>
+            </Stack>
           </Form>
         </Card>
       )
@@ -456,7 +473,11 @@ function waitingForOpponentView() {
   );
 }
 
-function MainView(clientData: ClientData, captainMode: boolean) {
+function MainView(
+  clientData: ClientData,
+  captainMode: boolean,
+  setCaptainMode: any
+) {
   // TODO: Display overall stats (num white/black points per team).
   let dynamicContent = null;
   const ourTeam = clientData.loginData.ourTeam;
@@ -477,7 +498,7 @@ function MainView(clientData: ClientData, captainMode: boolean) {
               wordsToExplain
             );
           } else {
-            dynamicContent = waitingForExplanationsView();
+            dynamicContent = waitingForExplanationsView(setCaptainMode);
           }
         }
         break;
@@ -595,7 +616,7 @@ export default function Index() {
   const clientData = new ClientData(loginData, gameData, captainMode);
 
   const body = {
-    0: MainView(clientData, captainMode),
+    0: MainView(clientData, captainMode, setCaptainMode),
     1: RoundsView(clientData.ourRounds()),
     2: RoundsView(clientData.theirRounds()),
     3: SummariesView(clientData.ourSummaries(), true),
@@ -605,7 +626,7 @@ export default function Index() {
   return (
     <Container>
       <CssBaseline />
-      <Container sx={{ pt: 2, pb: 9 }}>{body}</Container>
+      <Container sx={{ pt: 2, pb: 12 }}>{body}</Container>
       <Paper
         sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
         elevation={5}
@@ -636,18 +657,6 @@ export default function Index() {
           />
         </BottomNavigation>
       </Paper>
-      {
-        // TODO: Also check if it's relevant
-        tabIndex == 0 && (
-          <Fab
-            color="primary"
-            sx={{ position: "absolute", bottom: 84, right: 16 }}
-            onClick={() => setCaptainMode(!captainMode)}
-          >
-            {captainMode ? <VisibilityIcon /> : <LockIcon />}
-          </Fab>
-        )
-      }
     </Container>
   );
 }
