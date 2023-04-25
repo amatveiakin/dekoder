@@ -65,23 +65,25 @@ export default function Index() {
       alignItems="center"
       minHeight="100vh"
     >
-      <Form method="post">
-        <Stack spacing={2} sx={{ width: 280 }}>
-          <Typography variant="h6" align="center" sx={{ mb: 1 }}>
-            Welcome to decoder online!
-          </Typography>
-          <Button variant="contained" size="large" type="submit">
-            New game
-          </Button>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => navigate("/join")}
-          >
-            Join game
-          </Button>
-        </Stack>
-      </Form>
+      <Stack spacing={2} alignItems="center">
+        <Typography variant="h6" align="center" sx={{ mb: 1 }}>
+          Welcome to decoder online!
+        </Typography>
+        <Form method="post">
+          <Stack spacing={2} sx={{ width: 280 }}>
+            <Button variant="contained" size="large" type="submit">
+              New game
+            </Button>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate("/join")}
+            >
+              Join game
+            </Button>
+          </Stack>
+        </Form>
+      </Stack>
     </Box>
   );
 }

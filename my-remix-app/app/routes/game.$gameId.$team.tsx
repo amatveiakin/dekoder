@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import {
   BottomNavigation,
   BottomNavigationAction,
+  Box,
   Button,
   Card,
   Container,
@@ -613,8 +614,9 @@ export default function Game() {
   }[tabIndex];
 
   return (
-    <Container>
-      <Container sx={{ pt: 2, pb: 12 }}>{body}</Container>
+    <Container maxWidth={"md"}>
+      {/* `pb` is for the navigation bar */}
+      <Box sx={{ pt: 2, pb: 12 }}>{body}</Box>
       <Paper
         sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}
         elevation={5}

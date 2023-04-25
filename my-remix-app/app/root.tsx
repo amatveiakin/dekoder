@@ -22,6 +22,9 @@ export default function App() {
         main: "#ccad00",
       },
     },
+    typography: {
+      fontSize: 16, // default is 14
+    },
   };
   const theme = createTheme(themeOptions);
   return (
