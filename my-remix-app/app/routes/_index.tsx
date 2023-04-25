@@ -39,9 +39,9 @@ export const meta: V2_MetaFunction = () => {
 
 // TODO: Fix underscore_case for all functions and variables.
 
-const TOTAL_TEAMS = 2;
+// const TOTAL_TEAMS = 2;
 // const TOTAL_TEAM_WORDS = 4;
-const TEAM_WORDS_PER_ROUND = 3;
+// const TEAM_WORDS_PER_ROUND = 3;
 
 function all_teams(): string[] {
   return ["red", "blue"];
@@ -126,26 +126,31 @@ enum RoundStage {
   Done,
 }
 
-function getRoundStage(round: Round): RoundStage {
-  let wordsExplained = 0;
-  let wordsGuessed = 0;
-  console.log("###\n", JSON.stringify(round, null, 2));
-  for (const t1 of all_teams()) {
-    for (const item of round.teams[t1]) {
-      if (item.explanation) {
-        wordsExplained++;
-      }
-      for (const t2 of all_teams()) {
-        if (item.guess?.[t2]) {
-          wordsGuessed++;
-        }
+function teamExplainedWords(team: string, round: Round): boolean {
+  for (const item of round.teams[team]) {
+    if (!item.explanation) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function teamGuessedWords(team: string, round: Round): boolean {
+  for (const anyTeam of all_teams()) {
+    for (const item of round.teams[anyTeam]) {
+      if (!item.guess?.[team]) {
+        return false;
       }
     }
   }
-  if (wordsExplained < TOTAL_TEAMS * TEAM_WORDS_PER_ROUND) {
+  return true;
+}
+
+function getRoundStage(round: Round): RoundStage {
+  if (!all_teams().every((team) => teamExplainedWords(team, round))) {
     return RoundStage.Explain;
   }
-  if (wordsGuessed < TOTAL_TEAMS * TOTAL_TEAMS * TEAM_WORDS_PER_ROUND) {
+  if (!all_teams().every((team) => teamGuessedWords(team, round))) {
     return RoundStage.Guess;
   }
   return RoundStage.Done;
@@ -437,17 +442,21 @@ function MainView(clientData: ClientData, captainMode: boolean) {
   if (currentRound) {
     switch (getRoundStage(currentRound)) {
       case RoundStage.Explain: {
-        if (captainMode) {
-          const words = clientData.ourWords();
-          const wordsToExplain = currentRound.teams[ourTeam].map((item) =>
-            word_by_id(words, item.answer)
-          );
-          dynamicContent = enterExplanationsView(
-            clientData.loginData.ourTeam,
-            wordsToExplain
-          );
+        if (teamExplainedWords(ourTeam, currentRound)) {
+          dynamicContent = waitingForOpponentView();
         } else {
-          dynamicContent = waitingForExplanationsView();
+          if (captainMode) {
+            const words = clientData.ourWords();
+            const wordsToExplain = currentRound.teams[ourTeam].map((item) =>
+              word_by_id(words, item.answer)
+            );
+            dynamicContent = enterExplanationsView(
+              clientData.loginData.ourTeam,
+              wordsToExplain
+            );
+          } else {
+            dynamicContent = waitingForExplanationsView();
+          }
         }
         break;
       }
