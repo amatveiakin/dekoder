@@ -44,17 +44,26 @@
         "items": [
           {
             "explanation": "Lorem ipsum",
-            "guess": 4,
+            "guess": {
+              "red": 4,
+              "blue": 1
+            },
             "answer": 2
           },
           {
             "explanation": "dolor sit amet",
-            "guess": 3,
+            "guess": {
+              "red": 3,
+              "blue": 3
+            },
             "answer": 3
           },
           {
             "explanation": "consectetur",
-            "guess": 2,
+            "guess": {
+              "red": 2,
+              "blue": 2
+            },
             "answer": 4
           }
         ]
@@ -64,17 +73,26 @@
         "items": [
           {
             "explanation": "Cras justo dui",
-            "guess": 1,
+            "guess": {
+              "red": 1,
+              "blue": 3
+            },
             "answer": 1
           },
           {
             "explanation": "maximus elementum ornare sed",
-            "guess": 2,
+            "guess": {
+              "red": 2,
+              "blue": 2
+            },
             "answer": 2
           },
           {
             "explanation": "pretium ut magna",
-            "guess": 4,
+            "guess": {
+              "red": 4,
+              "blue": 3
+            },
             "answer": 3
           }
         ]
@@ -86,17 +104,26 @@
         "items": [
           {
             "explanation": "Vivamus tincidunt",
-            "guess": 4,
+            "guess": {
+              "red": 4,
+              "blue": 4
+            },
             "answer": 2
           },
           {
             "explanation": "rhoncus aliquam",
-            "guess": 3,
+            "guess": {
+              "red": 2,
+              "blue": 3
+            },
             "answer": 3
           },
           {
             "explanation": "Ut in metus facilisis",
-            "guess": 2,
+            "guess": {
+              "red": 1,
+              "blue": 2
+            },
             "answer": 4
           }
         ]

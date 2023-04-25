@@ -37,6 +37,8 @@ export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
 };
 
+// TODO: Fix underscore_case for all functions and variables.
+
 function all_teams(): string[] {
   return ["red", "blue"];
 }
@@ -47,16 +49,28 @@ function verify_team(team: string): string | undefined {
   return all_teams().includes(team) ? team : undefined;
 }
 
-class RoundItem {
+class PastRoundItem {
   constructor(
     public explanation: string,
-    public guess: number, // TODO: whose guess it is?
+    public guess: { [team: string]: number },
     public answer: number
   ) {}
 }
 
 class PastRound {
-  constructor(public round_id: number, public items: RoundItem[]) {}
+  constructor(public round_id: number, public items: PastRoundItem[]) {}
+}
+
+class PastRoundDisplayItem {
+  constructor(
+    public explanation: string,
+    public guess: number,
+    public answer: number
+  ) {}
+}
+
+class PastRoundDisplay {
+  constructor(public round_id: number, public items: PastRoundDisplayItem[]) {}
 }
 
 class Word {
@@ -170,17 +184,31 @@ class ClientData {
     public captainMode: boolean
   ) {}
 
+  private roundsByTeam(team: string): PastRoundDisplay[] {
+    return this.gameData.pastRounds[team].map((round) => {
+      return new PastRoundDisplay(
+        round.round_id,
+        round.items.map((item) => {
+          return new PastRoundDisplayItem(
+            item.explanation,
+            item.guess[this.loginData.ourTeam],
+            item.answer
+          );
+        })
+      );
+    });
+  }
   public ourCurrentRound(): CurrentRound {
     return this.gameData.currentRound[this.loginData.ourTeam];
   }
   public ourWords(): Word[] {
     return this.gameData.words[this.loginData.ourTeam];
   }
-  public ourRounds(): PastRound[] {
-    return this.gameData.pastRounds[this.loginData.ourTeam];
+  public ourRounds(): PastRoundDisplay[] {
+    return this.roundsByTeam(this.loginData.ourTeam);
   }
-  public theirRounds(): PastRound[] {
-    return this.gameData.pastRounds[other_team(this.loginData.ourTeam)];
+  public theirRounds(): PastRoundDisplay[] {
+    return this.roundsByTeam(other_team(this.loginData.ourTeam));
   }
   public ourSummaries(): Summary[] {
     return this.gameData.summaries[this.loginData.ourTeam];
@@ -220,7 +248,7 @@ const MyTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-function roundCard(round: PastRound) {
+function roundCard(round: PastRoundDisplay) {
   return (
     <Card key={round.round_id}>
       <TableContainer>
@@ -433,7 +461,7 @@ function MainView(clientData: ClientData, captainMode: boolean) {
   );
 }
 
-function RoundsView(rounds: PastRound[]) {
+function RoundsView(rounds: PastRoundDisplay[]) {
   return <Stack spacing={2}>{rounds.map((r) => roundCard(r))}</Stack>;
 }
 
