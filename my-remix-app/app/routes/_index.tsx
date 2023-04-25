@@ -37,6 +37,9 @@ export const meta: V2_MetaFunction = () => {
 const TOTAL_TEAM_WORDS = 4;
 const TEAM_WORDS_PER_ROUND = 3;
 
+const GAME_RESULT_ACTIVE = "active";
+const GAME_RESULT_DRAW = "draw";
+
 function getRandomInt(max: number): number {
   return Math.floor(Math.random() * max);
 }
@@ -133,12 +136,30 @@ function makeBadges(ourTeam: string, data: GameData): Badges {
   return new Badges(white_badges, black_badges);
 }
 
-// TODO: Don't stop if several conditions were met simultaneously.
-function isGameOver(data: GameData): boolean {
-  return allTeams().some((team) => {
+// Returns the winner, GAME_RESULT_DRAW or GAME_RESULT_ACTIVE.
+function getGameResult(data: GameData): string {
+  const gameOver =
+    data.pastRounds.length >= 8 ||
+    allTeams().some((team) => {
+      const badges = makeBadges(team, data);
+      return badges.good_badges >= 2 || badges.bad_badges >= 2;
+    });
+  if (!gameOver) {
+    return GAME_RESULT_ACTIVE;
+  }
+  const teamScore = (team: string) => {
     const badges = makeBadges(team, data);
-    return badges.good_badges >= 2 || badges.bad_badges >= 2;
-  });
+    return badges.good_badges - badges.bad_badges;
+  };
+  const redScore = teamScore("red");
+  const blueScore = teamScore("blue");
+  if (redScore > blueScore) {
+    return "red";
+  } else if (blueScore > redScore) {
+    return "blue";
+  } else {
+    return GAME_RESULT_DRAW;
+  }
 }
 
 enum RoundStage {
@@ -344,8 +365,22 @@ function badgeIcons(badges: Badges) {
 
 function badgesCard(clientData: ClientData) {
   const ourTeam = clientData.loginData.ourTeam;
+  const gameResult = getGameResult(clientData.gameData);
+  let gameOverMessage;
+  if (gameResult === ourTeam) {
+    gameOverMessage = "🏆 We won!";
+  } else if (gameResult === otherTeam(ourTeam)) {
+    gameOverMessage = "😕 We lost.";
+  } else if (gameResult === GAME_RESULT_DRAW) {
+    gameOverMessage = "⚖️ It's a draw.";
+  }
   return (
     <Card sx={{ p: 1 }}>
+      {gameOverMessage && (
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          {gameOverMessage}
+        </Typography>
+      )}
       {[ourTeam, otherTeam(ourTeam)].map((team) => (
         <Typography key={team} variant="body1">
           {team == ourTeam ? "Our badges:" : "Their badges:"}
@@ -518,35 +553,35 @@ function MainView(
   captainMode: boolean,
   setCaptainMode: any
 ) {
-  let dynamicContent = null;
+  let currentRoundWidget = null;
   const ourTeam = clientData.loginData.ourTeam;
   const currentRound = clientData.currentRound();
   if (currentRound) {
     switch (getRoundStage(currentRound)) {
       case RoundStage.Explain: {
         if (teamExplainedWords(ourTeam, currentRound)) {
-          dynamicContent = waitingForOpponentView();
+          currentRoundWidget = waitingForOpponentView();
         } else {
           if (captainMode) {
             const words = clientData.ourWords();
             const wordsToExplain = currentRound.teams[ourTeam].map((item) =>
               wordById(words, item.answer)
             );
-            dynamicContent = enterExplanationsView(
+            currentRoundWidget = enterExplanationsView(
               clientData.loginData.ourTeam,
               wordsToExplain
             );
           } else {
-            dynamicContent = waitingForExplanationsView(setCaptainMode);
+            currentRoundWidget = waitingForExplanationsView(setCaptainMode);
           }
         }
         break;
       }
       case RoundStage.Guess: {
         if (teamGuessedAllWords(ourTeam, currentRound)) {
-          dynamicContent = waitingForOpponentView();
+          currentRoundWidget = waitingForOpponentView();
         } else {
-          dynamicContent = enterGuessesView(
+          currentRoundWidget = enterGuessesView(
             clientData.loginData.ourTeam,
             currentRound
           );
@@ -563,7 +598,7 @@ function MainView(
     <Stack spacing={2}>
       {badgesCard(clientData)}
       {ourWordsView(clientData.ourWords())}
-      {dynamicContent}
+      {currentRoundWidget}
     </Stack>
   );
 }
@@ -626,10 +661,8 @@ export async function action({ request }: ActionArgs) {
     if (getRoundStage(currentRound) == RoundStage.Done) {
       const lastRoundId = currentRound.round_id;
       gameData.pastRounds.push(currentRound);
-      const gameOver = isGameOver(gameData);
-      if (gameOver) {
-        gameData.currentRound = undefined;
-      } else {
+      const gameResult = getGameResult(gameData);
+      if (gameResult === "active") {
         const teams: any = {};
         for (const t of allTeams()) {
           teams[t] = Array.from(
@@ -638,6 +671,8 @@ export async function action({ request }: ActionArgs) {
           );
         }
         gameData.currentRound = new Round(lastRoundId + 1, teams);
+      } else {
+        gameData.currentRound = undefined;
       }
     }
   } else {
