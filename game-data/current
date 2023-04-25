@@ -1,110 +1,116 @@
 {
-  "redWords": [
-    {
-      "word_id": 1,
-      "word": "Lorem"
-    },
-    {
-      "word_id": 2,
-      "word": "ipsum"
-    },
-    {
-      "word_id": 3,
-      "word": "dolor"
-    },
-    {
-      "word_id": 4,
-      "word": "sit"
-    }
-  ],
-  "blueWords": [
-    {
-      "word_id": 1,
-      "word": "amet"
-    },
-    {
-      "word_id": 2,
-      "word": "consectetur"
-    },
-    {
-      "word_id": 3,
-      "word": "adipiscing"
-    },
-    {
-      "word_id": 4,
-      "word": "elit"
-    }
-  ],
-  "redPastRounds": [
-    {
-      "round_id": 1,
-      "items": [
-        {
-          "explanation": "Lorem ipsum",
-          "guess": 4,
-          "answer": 2
-        },
-        {
-          "explanation": "dolor sit amet",
-          "guess": 3,
-          "answer": 3
-        },
-        {
-          "explanation": "consectetur",
-          "guess": 2,
-          "answer": 4
-        }
-      ]
-    },
-    {
-      "round_id": 2,
-      "items": [
-        {
-          "explanation": "Cras justo dui",
-          "guess": 1,
-          "answer": 1
-        },
-        {
-          "explanation": "maximus elementum ornare sed",
-          "guess": 2,
-          "answer": 2
-        },
-        {
-          "explanation": "pretium ut magna",
-          "guess": 4,
-          "answer": 3
-        }
-      ]
-    }
-  ],
-  "bluePastRounds": [
-    {
-      "round_id": 1,
-      "items": [
-        {
-          "explanation": "Vivamus tincidunt",
-          "guess": 4,
-          "answer": 2
-        },
-        {
-          "explanation": "rhoncus aliquam",
-          "guess": 3,
-          "answer": 3
-        },
-        {
-          "explanation": "Ut in metus facilisis",
-          "guess": 2,
-          "answer": 4
-        }
-      ]
-    }
-  ],
-  "redCurrentRound": {
-    "round_id": 3,
-    "answer_ids": [
-      1,
-      2,
-      4
+  "words": {
+    "red": [
+      {
+        "word_id": 1,
+        "word": "Lorem"
+      },
+      {
+        "word_id": 2,
+        "word": "ipsum"
+      },
+      {
+        "word_id": 3,
+        "word": "dolor"
+      },
+      {
+        "word_id": 4,
+        "word": "sit"
+      }
+    ],
+    "blue": [
+      {
+        "word_id": 1,
+        "word": "amet"
+      },
+      {
+        "word_id": 2,
+        "word": "consectetur"
+      },
+      {
+        "word_id": 3,
+        "word": "adipiscing"
+      },
+      {
+        "word_id": 4,
+        "word": "elit"
+      }
     ]
+  },
+  "pastRounds": {
+    "red": [
+      {
+        "round_id": 1,
+        "items": [
+          {
+            "explanation": "Lorem ipsum",
+            "guess": 4,
+            "answer": 2
+          },
+          {
+            "explanation": "dolor sit amet",
+            "guess": 3,
+            "answer": 3
+          },
+          {
+            "explanation": "consectetur",
+            "guess": 2,
+            "answer": 4
+          }
+        ]
+      },
+      {
+        "round_id": 2,
+        "items": [
+          {
+            "explanation": "Cras justo dui",
+            "guess": 1,
+            "answer": 1
+          },
+          {
+            "explanation": "maximus elementum ornare sed",
+            "guess": 2,
+            "answer": 2
+          },
+          {
+            "explanation": "pretium ut magna",
+            "guess": 4,
+            "answer": 3
+          }
+        ]
+      }
+    ],
+    "blue": [
+      {
+        "round_id": 1,
+        "items": [
+          {
+            "explanation": "Vivamus tincidunt",
+            "guess": 4,
+            "answer": 2
+          },
+          {
+            "explanation": "rhoncus aliquam",
+            "guess": 3,
+            "answer": 3
+          },
+          {
+            "explanation": "Ut in metus facilisis",
+            "guess": 2,
+            "answer": 4
+          }
+        ]
+      }
+    ]
+  },
+  "currentRound": {
+    "red": {
+      "round_id": 3,
+      "answer_ids": [
+        1,
+        2,
+        4
+      ]
+    }
   }
 }

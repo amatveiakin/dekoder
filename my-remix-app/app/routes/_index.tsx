@@ -37,29 +37,14 @@ export const meta: V2_MetaFunction = () => {
   return [{ title: "Dekoder" }];
 };
 
-function toClass(cls: any, data: any): any {
-  return Object.assign(new cls(), data);
+function all_teams(): string[] {
+  return ["red", "blue"];
 }
-function toClassArray(cls: any, data: any[]): any[] {
-  return data.map((item) => toClass(cls, item));
+function other_team(team: string): string {
+  return team === "red" ? "blue" : "red";
 }
-
-enum Team {
-  Red,
-  Blue,
-}
-
-function string_to_team(s: string): Team | undefined {
-  return s === "red" ? Team.Red : s === "blue" ? Team.Blue : undefined;
-}
-function team_to_string(t: Team): string {
-  return t === Team.Red ? "red" : "blue";
-}
-function all_teams(): Team[] {
-  return [Team.Red, Team.Blue];
-}
-function other_team(team: Team): Team {
-  return team === Team.Red ? Team.Blue : Team.Red;
+function verify_team(team: string): string | undefined {
+  return all_teams().includes(team) ? team : undefined;
 }
 
 class RoundItem {
@@ -125,64 +110,54 @@ class CurrentRound {
     public red_guess_ids?: number[],
     public blue_guess_ids?: number[]
   ) {}
+}
 
-  public stage(): RoundStage {
-    if (this.round_id === undefined) {
-      console.assert(this.answer_ids === undefined);
-      return RoundStage.None;
-    }
-    if (this.explanations === undefined) {
-      return RoundStage.Explain;
-    }
-    if (this.red_guess_ids === undefined) {
-      console.assert(this.blue_guess_ids === undefined);
-      return RoundStage.Guess;
-    }
-    return RoundStage.Done;
+function current_round_stage(round: CurrentRound): RoundStage {
+  if (round.round_id === undefined) {
+    console.assert(round.answer_ids === undefined);
+    return RoundStage.None;
   }
+  if (round.explanations === undefined) {
+    return RoundStage.Explain;
+  }
+  if (round.red_guess_ids === undefined) {
+    console.assert(round.blue_guess_ids === undefined);
+    return RoundStage.Guess;
+  }
+  return RoundStage.Done;
 }
 
 class LoginData {
-  constructor(public ourTeam: Team) {}
+  constructor(public ourTeam: string) {}
 }
 
 class GameData {
   constructor(
-    public words: Map<Team, Word[]>,
-    public pastRounds: Map<Team, PastRound[]>,
-    public currentRound: Map<Team, CurrentRound>,
-    public summaries: Map<Team, Summary[]>
+    public words: { [team: string]: Word[] },
+    public pastRounds: { [team: string]: PastRound[] },
+    public currentRound: { [team: string]: CurrentRound },
+    public summaries: { [team: string]: Summary[] }
   ) {}
 
   public static fromJson(json_text: string): GameData {
-    const json = JSON.parse(json_text);
-    const words = new Map([
-      [Team.Red, toClassArray(Word, json.redWords)],
-      [Team.Blue, toClassArray(Word, json.blueWords)],
-    ]);
-    const pastRounds = new Map([
-      [Team.Red, toClassArray(PastRound, json.redPastRounds)],
-      [Team.Blue, toClassArray(PastRound, json.bluePastRounds)],
-    ]);
-    const currentRound = new Map([
-      [Team.Red, toClass(CurrentRound, json.redCurrentRound)],
-      [Team.Blue, toClass(CurrentRound, json.blueCurrentRound)],
-    ]);
-    const summaries = new Map();
+    const data = JSON.parse(json_text);
+    const summaries: any = {};
     for (const t of all_teams()) {
-      summaries.set(t, make_summaries(words.get(t)!, pastRounds.get(t)!));
+      summaries[t] = make_summaries(data.words[t], data.pastRounds[t]);
     }
-    return new GameData(words, pastRounds, currentRound, summaries);
+    return new GameData(
+      data.words,
+      data.pastRounds,
+      data.currentRound,
+      summaries
+    );
   }
 
   public toJson(): string {
     const jsonObject = {
-      redWords: this.words.get(Team.Red),
-      blueWords: this.words.get(Team.Blue),
-      redPastRounds: this.pastRounds.get(Team.Red),
-      bluePastRounds: this.pastRounds.get(Team.Blue),
-      redCurrentRound: this.currentRound.get(Team.Red),
-      blueCurrentRound: this.currentRound.get(Team.Blue),
+      words: this.words,
+      pastRounds: this.pastRounds,
+      currentRound: this.currentRound,
     };
     return JSON.stringify(jsonObject, null, 2);
   }
@@ -196,22 +171,22 @@ class ClientData {
   ) {}
 
   public ourCurrentRound(): CurrentRound {
-    return this.gameData.currentRound.get(this.loginData.ourTeam)!;
+    return this.gameData.currentRound[this.loginData.ourTeam];
   }
   public ourWords(): Word[] {
-    return this.gameData.words.get(this.loginData.ourTeam)!;
+    return this.gameData.words[this.loginData.ourTeam];
   }
   public ourRounds(): PastRound[] {
-    return this.gameData.pastRounds.get(this.loginData.ourTeam)!;
+    return this.gameData.pastRounds[this.loginData.ourTeam];
   }
   public theirRounds(): PastRound[] {
-    return this.gameData.pastRounds.get(other_team(this.loginData.ourTeam))!;
+    return this.gameData.pastRounds[other_team(this.loginData.ourTeam)];
   }
   public ourSummaries(): Summary[] {
-    return this.gameData.summaries.get(this.loginData.ourTeam)!;
+    return this.gameData.summaries[this.loginData.ourTeam];
   }
   public theirSummaries(): Summary[] {
-    return this.gameData.summaries.get(other_team(this.loginData.ourTeam))!;
+    return this.gameData.summaries[other_team(this.loginData.ourTeam)];
   }
 }
 
@@ -325,12 +300,12 @@ function ourWordsView(words: Word[]) {
   );
 }
 
-function enterExplanationsView(ourTeam: Team, wordsToExplain: Word[]) {
+function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
   // const formErrors = useActionData<typeof action>();
   return (
     <Card>
       <Form method="post" reloadDocument>
-        <input type="hidden" name="team" value={team_to_string(ourTeam)} />
+        <input type="hidden" name="team" value={ourTeam} />
         <TableContainer>
           <Table size="small">
             <TableBody>
@@ -373,11 +348,11 @@ function waitingForExplanationsView() {
   );
 }
 
-function enterGuessesView(ourTeam: Team, explanations: Explanation[]) {
+function enterGuessesView(ourTeam: string, explanations: Explanation[]) {
   return (
     <Card>
       <Form method="post" reloadDocument>
-        <input type="hidden" name="team" value={team_to_string(ourTeam)} />
+        <input type="hidden" name="team" value={ourTeam} />
         <TableContainer>
           <Table size="small">
             <TableBody>
@@ -419,7 +394,7 @@ function MainView(clientData: ClientData, captainMode: boolean) {
   // TODO: Display overall stats (num white/black points per team).
   let dynamicContent = null;
   const currentRound = clientData.ourCurrentRound();
-  switch (currentRound.stage()) {
+  switch (current_round_stage(currentRound)) {
     case RoundStage.None: {
       break;
     }
@@ -485,9 +460,9 @@ export async function action({ request }: ActionArgs) {
   // }
   // console.log("=== END ===");
 
-  const team = string_to_team(formData.get("team")!.toString())!;
-  const currentRound = gameData.currentRound.get(team)!;
-  switch (currentRound.stage()) {
+  const team = verify_team(formData.get("team")!.toString())!;
+  const currentRound = gameData.currentRound[team];
+  switch (current_round_stage(currentRound)) {
     case RoundStage.None: {
       // Game is over
       break;
@@ -516,7 +491,7 @@ export async function action({ request }: ActionArgs) {
 }
 
 export default function Index() {
-  const loginData = new LoginData(Team.Red);
+  const loginData = new LoginData("red");
   const gameData = GameData.fromJson(useLoaderData<typeof loader>());
   const [tabIndex, setTableIndex] = useState(0);
   const [captainMode, setCaptainMode] = useState(false);
