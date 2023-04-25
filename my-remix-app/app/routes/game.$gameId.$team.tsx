@@ -276,6 +276,10 @@ const WideTableCell = styled(TableCell)(({ theme }) => ({
     color: theme.palette.common.white,
     fontWeight: 700,
   },
+  [`&.featured-table-head`]: {
+    backgroundColor: theme.palette.secondary.main,
+    color: theme.palette.common.black,
+  },
   [`&.${tableCellClasses.body}`]: {},
 }));
 
@@ -381,8 +385,16 @@ function badgesCard(clientData: ClientData) {
   } else if (gameResult === GAME_RESULT_DRAW) {
     gameOverMessage = "⚖️ It's a draw.";
   }
+  const gameOver = gameOverMessage !== undefined;
   return (
-    <Card sx={{ p: 1 }}>
+    <Card
+      sx={{
+        px: 1.5,
+        py: 1,
+        backgroundColor: gameOver ? "primary.dark" : undefined,
+        color: gameOver ? "common.white" : undefined,
+      }}
+    >
       {gameOverMessage && (
         <Typography variant="h6" sx={{ mb: 1 }}>
           {gameOverMessage}
@@ -435,7 +447,7 @@ function enterExplanationsView(ourTeam: string, wordsToExplain: Word[]) {
                 {wordsToExplain.map((w) => (
                   <NormalTableRow key={w.word_id}>
                     <NarrowTableCell
-                      className={tableCellClasses.head}
+                      className={`${tableCellClasses.head} featured-table-head`}
                       align="center"
                     >
                       {w.word_id}
@@ -493,7 +505,7 @@ function enterGuessesView(ourTeam: string, round: Round) {
     (explainerTeam) =>
       !teamGuessedWordsBy(ourTeam, explainerTeam, round) && (
         <Card key={explainerTeam}>
-          <Form method="post" reloadDocument>
+          <Form method="post">
             <Stack alignItems="flex-end">
               <input type="hidden" name="team" value={ourTeam} />
               <input
@@ -505,12 +517,12 @@ function enterGuessesView(ourTeam: string, round: Round) {
                 <Table size="small">
                   <TableHead>
                     <NormalTableRow>
-                      <WideTableCell>
+                      <WideTableCell className="featured-table-head">
                         {explainerTeam === ourTeam
                           ? "Our words"
                           : "Their words"}
                       </WideTableCell>
-                      <NarrowTableCell></NarrowTableCell>
+                      <NarrowTableCell className="featured-table-head"></NarrowTableCell>
                     </NormalTableRow>
                   </TableHead>
                   <TableBody>
