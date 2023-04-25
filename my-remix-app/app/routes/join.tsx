@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "@remix-run/react";
 import { Box, Button, Stack, TextField, ButtonGroup } from "@mui/material";
 
-// TODO: Change color theme so that buttons are neither blue nor red.
 export default function Join() {
   const [team, setTeam] = useState("red");
   const [gameId, setGameId] = useState("");
