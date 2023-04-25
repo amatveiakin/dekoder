@@ -1,6 +1,10 @@
-import { type ActionArgs, type V2_MetaFunction, json } from "@remix-run/node";
+import {
+  type LoaderArgs,
+  type ActionArgs,
+  type V2_MetaFunction,
+  json,
+} from "@remix-run/node";
 import React, { useState } from "react";
-import CssBaseline from "@mui/material/CssBaseline";
 import {
   BottomNavigation,
   BottomNavigationAction,
@@ -616,14 +620,18 @@ function SummariesView(summaries: Summary[], showWords: boolean) {
   );
 }
 
-export async function loader() {
-  return await fsPromises.readFile("../game-data/current", "utf8");
+function gameFile(params: any): string {
+  return `../game-data/${params.gameId}`;
 }
 
-export async function action({ request }: ActionArgs) {
+export async function loader({ params }: LoaderArgs) {
+  return await fsPromises.readFile(gameFile(params), "utf8");
+}
+
+export async function action({ params, request }: ActionArgs) {
   // TODO: Don't crash on bad data.
   const gameData = gameDataFromJson(
-    await fsPromises.readFile("../game-data/current", "utf8")
+    await fsPromises.readFile(gameFile(params), "utf8")
   );
   const formData = await request.formData();
 
@@ -682,14 +690,14 @@ export async function action({ request }: ActionArgs) {
     // Game is over
   }
   await fsPromises.writeFile(
-    "../game-data/current",
+    gameFile(params),
     gameDataToJson(gameData),
     "utf8"
   );
   return json({ ok: true });
 }
 
-export default function Index() {
+export default function Game() {
   const [searchParams, _setSearchParams] = useSearchParams();
   const loginData = new LoginData(searchParams.get("team")!);
   const gameData = gameDataFromJson(useLoaderData<typeof loader>());
@@ -707,7 +715,6 @@ export default function Index() {
 
   return (
     <Container>
-      <CssBaseline />
       <Container sx={{ pt: 2, pb: 12 }}>{body}</Container>
       <Paper
         sx={{ position: "fixed", bottom: 0, left: 0, right: 0 }}

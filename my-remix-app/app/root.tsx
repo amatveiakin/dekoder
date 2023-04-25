@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import CssBaseline from "@mui/material/CssBaseline";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Links />
       </head>
       <body>
+        <CssBaseline />
         <Outlet />
         <ScrollRestoration />
         <Scripts />
