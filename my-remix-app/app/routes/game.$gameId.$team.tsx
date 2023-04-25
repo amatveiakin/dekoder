@@ -30,7 +30,7 @@ import SummarizeOutlinedIcon from "@mui/icons-material/SummarizeOutlined";
 import SummarizeIcon from "@mui/icons-material/Summarize";
 import PasswordIcon from "@mui/icons-material/Password";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
-import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
+import { Form, useLoaderData, useParams } from "@remix-run/react";
 
 const fsPromises = require("fs").promises;
 
@@ -698,8 +698,8 @@ export async function action({ params, request }: ActionArgs) {
 }
 
 export default function Game() {
-  const [searchParams, _setSearchParams] = useSearchParams();
-  const loginData = new LoginData(searchParams.get("team")!);
+  const { team } = useParams();
+  const loginData = new LoginData(team!);
   const gameData = gameDataFromJson(useLoaderData<typeof loader>());
   const [tabIndex, setTableIndex] = useState(0);
   const [captainMode, setCaptainMode] = useState(false);
