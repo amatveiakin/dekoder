@@ -29,7 +29,7 @@ import SummarizeIcon from "@mui/icons-material/Summarize";
 import PasswordIcon from "@mui/icons-material/Password";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LockIcon from "@mui/icons-material/Lock";
-import { Form, useLoaderData } from "@remix-run/react";
+import { Form, useLoaderData, useSearchParams } from "@remix-run/react";
 
 const fsPromises = require("fs").promises;
 
@@ -243,12 +243,12 @@ const WideTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.body}`]: {},
 }));
 
-const NarrowTableCell = styled(WideTableCell)(({ theme }) => ({
+const NarrowTableCell = styled(WideTableCell)(() => ({
   "&": {
     width: 20,
   },
 }));
-const NarrowishTableCell = styled(WideTableCell)(({ theme }) => ({
+const NarrowishTableCell = styled(WideTableCell)(() => ({
   "&": {
     width: 60,
   },
@@ -540,7 +540,8 @@ export async function action({ request }: ActionArgs) {
 }
 
 export default function Index() {
-  const loginData = new LoginData("red");
+  const [searchParams, _setSearchParams] = useSearchParams();
+  const loginData = new LoginData(searchParams.get("team")!);
   const gameData = GameData.fromJson(useLoaderData<typeof loader>());
   const [tabIndex, setTableIndex] = useState(0);
   const [captainMode, setCaptainMode] = useState(false);
