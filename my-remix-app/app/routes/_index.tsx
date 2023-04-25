@@ -160,32 +160,16 @@ class GameData {
   constructor(
     public words: { [team: string]: Word[] },
     public pastRounds: Round[], // always RoundStage.Done
-    public summaries: { [team: string]: Summary[] },
     public currentRound?: Round
   ) {}
 
   public static fromJson(json_text: string): GameData {
-    const data = JSON.parse(json_text);
-    // TODO: Construct summaries on the fly
-    const summaries: any = {};
-    for (const t of all_teams()) {
-      summaries[t] = make_summaries(t, data.words[t], data.pastRounds);
-    }
-    return new GameData(
-      data.words,
-      data.pastRounds,
-      summaries,
-      data.currentRound
-    );
+    // TODO: Add validation
+    return JSON.parse(json_text) as GameData;
   }
 
   public toJson(): string {
-    const jsonObject = {
-      words: this.words,
-      pastRounds: this.pastRounds,
-      currentRound: this.currentRound,
-    };
-    return JSON.stringify(jsonObject, null, 2);
+    return JSON.stringify(this, null, 2);
   }
 }
 
@@ -210,6 +194,14 @@ class ClientData {
       );
     });
   }
+  private summariesByTeam(team: string): Summary[] {
+    return make_summaries(
+      team,
+      this.gameData.words[team],
+      this.gameData.pastRounds
+    );
+  }
+
   public currentRound(): Round | undefined {
     return this.gameData.currentRound;
   }
@@ -223,10 +215,10 @@ class ClientData {
     return this.roundsByTeam(other_team(this.loginData.ourTeam));
   }
   public ourSummaries(): Summary[] {
-    return this.gameData.summaries[this.loginData.ourTeam];
+    return this.summariesByTeam(this.loginData.ourTeam);
   }
   public theirSummaries(): Summary[] {
-    return this.gameData.summaries[other_team(this.loginData.ourTeam)];
+    return this.summariesByTeam(other_team(this.loginData.ourTeam));
   }
 }
 
