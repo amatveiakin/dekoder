@@ -39,6 +39,10 @@ export const meta: V2_MetaFunction = () => {
 
 // TODO: Fix underscore_case for all functions and variables.
 
+const TOTAL_TEAMS = 2;
+// const TOTAL_TEAM_WORDS = 4;
+const TEAM_WORDS_PER_ROUND = 3;
+
 function all_teams(): string[] {
   return ["red", "blue"];
 }
@@ -49,23 +53,26 @@ function verify_team(team: string): string | undefined {
   return all_teams().includes(team) ? team : undefined;
 }
 
-class PastRoundItem {
+class RoundItem {
   constructor(
-    public explanation: string,
-    public guess: { [team: string]: number },
-    public answer: number
+    public answer: number, // word_id
+    public explanation?: string,
+    public guess?: { [team: string]: number } // word_id
   ) {}
 }
 
-class PastRound {
-  constructor(public round_id: number, public items: PastRoundItem[]) {}
+class Round {
+  constructor(
+    public round_id: number,
+    public teams: { [team: string]: RoundItem[] }
+  ) {}
 }
 
 class PastRoundDisplayItem {
   constructor(
+    public answer: number,
     public explanation: string,
-    public guess: number,
-    public answer: number
+    public guess: number
   ) {}
 }
 
@@ -93,14 +100,18 @@ class Summary {
   ) {}
 }
 
-function make_summaries(words: Word[], rounds: PastRound[]): Summary[] {
+function make_summaries(
+  team: string,
+  words: Word[],
+  rounds: Round[]
+): Summary[] {
   const summaries: Summary[] = [];
   for (const word of words) {
     const explanations: string[] = [];
     for (const round of rounds) {
-      for (const item of round.items) {
+      for (const item of round.teams[team]) {
         if (item.answer === word.word_id) {
-          explanations.push(item.explanation);
+          explanations.push(item.explanation!);
         }
       }
     }
@@ -110,32 +121,31 @@ function make_summaries(words: Word[], rounds: PastRound[]): Summary[] {
 }
 
 enum RoundStage {
-  None, // game is over
   Explain,
   Guess,
   Done,
 }
 
-class CurrentRound {
-  constructor(
-    public round_id?: number, // only undefined when the game is over
-    public answer_ids?: number[], // only undefined when the game is over
-    public explanations?: Explanation[],
-    public red_guess_ids?: number[],
-    public blue_guess_ids?: number[]
-  ) {}
-}
-
-function current_round_stage(round: CurrentRound): RoundStage {
-  if (round.round_id === undefined) {
-    console.assert(round.answer_ids === undefined);
-    return RoundStage.None;
+function getRoundStage(round: Round): RoundStage {
+  let wordsExplained = 0;
+  let wordsGuessed = 0;
+  console.log("###\n", JSON.stringify(round, null, 2));
+  for (const t1 of all_teams()) {
+    for (const item of round.teams[t1]) {
+      if (item.explanation) {
+        wordsExplained++;
+      }
+      for (const t2 of all_teams()) {
+        if (item.guess?.[t2]) {
+          wordsGuessed++;
+        }
+      }
+    }
   }
-  if (round.explanations === undefined) {
+  if (wordsExplained < TOTAL_TEAMS * TEAM_WORDS_PER_ROUND) {
     return RoundStage.Explain;
   }
-  if (round.red_guess_ids === undefined) {
-    console.assert(round.blue_guess_ids === undefined);
+  if (wordsGuessed < TOTAL_TEAMS * TOTAL_TEAMS * TEAM_WORDS_PER_ROUND) {
     return RoundStage.Guess;
   }
   return RoundStage.Done;
@@ -148,22 +158,23 @@ class LoginData {
 class GameData {
   constructor(
     public words: { [team: string]: Word[] },
-    public pastRounds: { [team: string]: PastRound[] },
-    public currentRound: { [team: string]: CurrentRound },
-    public summaries: { [team: string]: Summary[] }
+    public pastRounds: Round[], // always RoundStage.Done
+    public summaries: { [team: string]: Summary[] },
+    public currentRound?: Round
   ) {}
 
   public static fromJson(json_text: string): GameData {
     const data = JSON.parse(json_text);
+    // TODO: Construct summaries on the fly
     const summaries: any = {};
     for (const t of all_teams()) {
-      summaries[t] = make_summaries(data.words[t], data.pastRounds[t]);
+      summaries[t] = make_summaries(t, data.words[t], data.pastRounds);
     }
     return new GameData(
       data.words,
       data.pastRounds,
-      data.currentRound,
-      summaries
+      summaries,
+      data.currentRound
     );
   }
 
@@ -185,21 +196,21 @@ class ClientData {
   ) {}
 
   private roundsByTeam(team: string): PastRoundDisplay[] {
-    return this.gameData.pastRounds[team].map((round) => {
+    return this.gameData.pastRounds.map((round) => {
       return new PastRoundDisplay(
         round.round_id,
-        round.items.map((item) => {
+        round.teams[team].map((item) => {
           return new PastRoundDisplayItem(
-            item.explanation,
-            item.guess[this.loginData.ourTeam],
-            item.answer
+            item.answer,
+            item.explanation!,
+            item.guess![this.loginData.ourTeam]
           );
         })
       );
     });
   }
-  public ourCurrentRound(): CurrentRound {
-    return this.gameData.currentRound[this.loginData.ourTeam];
+  public currentRound(): Round | undefined {
+    return this.gameData.currentRound;
   }
   public ourWords(): Word[] {
     return this.gameData.words[this.loginData.ourTeam];
@@ -421,36 +432,39 @@ function waitingForOpponentView() {
 function MainView(clientData: ClientData, captainMode: boolean) {
   // TODO: Display overall stats (num white/black points per team).
   let dynamicContent = null;
-  const currentRound = clientData.ourCurrentRound();
-  switch (current_round_stage(currentRound)) {
-    case RoundStage.None: {
-      break;
-    }
-    case RoundStage.Explain: {
-      if (captainMode) {
-        const words = clientData.ourWords();
-        const wordsToExplain = currentRound.answer_ids!.map((id) =>
-          word_by_id(words, id)
-        );
-        dynamicContent = enterExplanationsView(
-          clientData.loginData.ourTeam,
-          wordsToExplain
-        );
-      } else {
-        dynamicContent = waitingForExplanationsView();
+  const ourTeam = clientData.loginData.ourTeam;
+  const currentRound = clientData.currentRound();
+  if (currentRound) {
+    switch (getRoundStage(currentRound)) {
+      case RoundStage.Explain: {
+        if (captainMode) {
+          const words = clientData.ourWords();
+          const wordsToExplain = currentRound.teams[ourTeam].map((item) =>
+            word_by_id(words, item.answer)
+          );
+          dynamicContent = enterExplanationsView(
+            clientData.loginData.ourTeam,
+            wordsToExplain
+          );
+        } else {
+          dynamicContent = waitingForExplanationsView();
+        }
+        break;
       }
-      break;
-    }
-    case RoundStage.Guess: {
-      dynamicContent = enterGuessesView(
-        clientData.loginData.ourTeam,
-        currentRound.explanations!
-      );
-      break;
-    }
-    case RoundStage.Done: {
-      dynamicContent = waitingForOpponentView();
-      break;
+      case RoundStage.Guess: {
+        const explanations = currentRound.teams[ourTeam].map(
+          (item) => new Explanation(item.answer, item.explanation!)
+        );
+        dynamicContent = enterGuessesView(
+          clientData.loginData.ourTeam,
+          explanations
+        );
+        break;
+      }
+      case RoundStage.Done: {
+        dynamicContent = waitingForOpponentView();
+        break;
+      }
     }
   }
   return (
@@ -488,31 +502,29 @@ export async function action({ request }: ActionArgs) {
   // }
   // console.log("=== END ===");
 
-  const team = verify_team(formData.get("team")!.toString())!;
-  const currentRound = gameData.currentRound[team];
-  switch (current_round_stage(currentRound)) {
-    case RoundStage.None: {
-      // Game is over
-      break;
-    }
-    case RoundStage.Explain: {
-      currentRound.explanations = [];
-      for (const answer_id of currentRound.answer_ids!) {
-        const explanation = formData
-          .get(`explanation-${answer_id}`)!
-          .toString();
-        currentRound.explanations.push(new Explanation(answer_id, explanation));
+  const currentRound = gameData.currentRound;
+  if (currentRound) {
+    const team = verify_team(formData.get("team")!.toString())!;
+    switch (getRoundStage(currentRound)) {
+      case RoundStage.Explain: {
+        for (const item of currentRound.teams[team]) {
+          item.explanation = formData
+            .get(`explanation-${item.answer}`)!
+            .toString();
+        }
+        break;
       }
-      break;
+      case RoundStage.Guess: {
+        // ...
+        break;
+      }
+      case RoundStage.Done: {
+        // ...
+        break;
+      }
     }
-    case RoundStage.Guess: {
-      // ...
-      break;
-    }
-    case RoundStage.Done: {
-      // ...
-      break;
-    }
+  } else {
+    // Game is over
   }
   await fsPromises.writeFile("../game-data/current", gameData.toJson(), "utf8");
   return json({ ok: true });

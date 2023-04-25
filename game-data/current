@@ -37,11 +37,11 @@
       }
     ]
   },
-  "pastRounds": {
-    "red": [
-      {
-        "round_id": 1,
-        "items": [
+  "pastRounds": [
+    {
+      "round_id": 1,
+      "teams": {
+        "red": [
           {
             "explanation": "Lorem ipsum",
             "guess": {
@@ -66,42 +66,8 @@
             },
             "answer": 4
           }
-        ]
-      },
-      {
-        "round_id": 2,
-        "items": [
-          {
-            "explanation": "Cras justo dui",
-            "guess": {
-              "red": 1,
-              "blue": 3
-            },
-            "answer": 1
-          },
-          {
-            "explanation": "maximus elementum ornare sed",
-            "guess": {
-              "red": 2,
-              "blue": 2
-            },
-            "answer": 2
-          },
-          {
-            "explanation": "pretium ut magna",
-            "guess": {
-              "red": 4,
-              "blue": 3
-            },
-            "answer": 3
-          }
-        ]
-      }
-    ],
-    "blue": [
-      {
-        "round_id": 1,
-        "items": [
+        ],
+        "blue": [
           {
             "explanation": "Vivamus tincidunt",
             "guess": {
@@ -128,15 +94,32 @@
           }
         ]
       }
-    ]
-  },
+    }
+  ],
   "currentRound": {
-    "red": {
-      "round_id": 3,
-      "answer_ids": [
-        1,
-        2,
-        4
+    "round_id": 2,
+    "teams": {
+      "red": [
+        {
+          "answer": 1
+        },
+        {
+          "answer": 2
+        },
+        {
+          "answer": 3
+        }
+      ],
+      "blue": [
+        {
+          "answer": 2
+        },
+        {
+          "answer": 3
+        },
+        {
+          "answer": 4
+        }
       ]
     }
   }
